@@ -78,6 +78,107 @@ const BRAND_PRESETS = {
   }
 };
 
+const DEFAULT_VISUAL_TEMPLATE = "black-gold";
+
+const VISUAL_TEMPLATES = {
+  "black-gold": {
+    styleId: "black-gold",
+    name: "Black Gold Authority",
+    language: "en",
+    imageUrl: "/assets/generated/tech-gold-workspace.png",
+    imageAlt: "Gold lit creator workspace",
+    accentColor: "#f8c94f",
+    mark: "IV",
+    label: "Viral Intel",
+    chrome: "top-swipe",
+    tone: "black and gold authority, contrarian business hooks, high contrast editorial"
+  },
+  "sprint-jp": {
+    styleId: "sprint-jp",
+    name: "Sprint Gold Impact",
+    language: "jp",
+    imageUrl: "/assets/generated/sprint-science-track.png",
+    imageAlt: "Sprinter on indoor track",
+    accentColor: "#ffd45b",
+    mark: "",
+    label: "保存推奨",
+    chrome: "save-badge",
+    tone: "Japanese sports science, kinetic gold impact, save-worthy tactical tips"
+  },
+  "blue-brief": {
+    styleId: "blue-brief",
+    name: "White Blue Briefing",
+    language: "bilingual",
+    imageUrl: "/assets/generated/blue-business-data.png",
+    imageAlt: "Presenter with digital data globe",
+    accentColor: "#7bd8ff",
+    mark: "",
+    label: "EN / JP Briefing",
+    chrome: "briefing-top",
+    tone: "clean business credibility, blue briefing, explainers and analysis"
+  },
+  "teal-news": {
+    styleId: "teal-news",
+    name: "Teal News Pulse",
+    language: "en",
+    imageUrl: "/assets/generated/tech-gold-workspace.png",
+    imageAlt: "Gold lit workspace adapted for teal news treatment",
+    accentColor: "#13c6a3",
+    mark: "VM",
+    label: "Viral Marketing",
+    chrome: "center-mark",
+    tone: "fast-moving news pulse, creator economy, teal highlight over dark editorial"
+  },
+  "white-blue-jp": {
+    styleId: "white-blue-jp",
+    name: "Clean White Blue",
+    language: "jp",
+    imageUrl: "/assets/generated/blue-business-data.png",
+    imageAlt: "Blue business data presentation",
+    accentColor: "#42b8ff",
+    mark: "",
+    label: "保存版",
+    chrome: "side-brand",
+    tone: "trustworthy Japanese tutorial, white and blue business education"
+  },
+  "warm-human": {
+    styleId: "warm-human",
+    name: "Warm Human Editorial",
+    language: "bilingual",
+    imageUrl: "/assets/generated/family-soft-light.png",
+    imageAlt: "Parent holding sleeping toddler",
+    accentColor: "#ff9f1c",
+    mark: "HV",
+    label: "Human Value",
+    chrome: "top-brand",
+    tone: "warm human editorial, personal stories, coaching, parenting, community"
+  },
+  "red-alert": {
+    styleId: "red-alert",
+    name: "Red Alert Hook",
+    language: "en",
+    imageUrl: "/assets/generated/sprint-science-track.png",
+    imageAlt: "Sprint training background with red alert treatment",
+    accentColor: "#ff3131",
+    mark: "",
+    label: "Swipe for fixes",
+    chrome: "bottom-brand",
+    tone: "red alert, mistakes, warnings, tactical creator hooks"
+  },
+  "soft-jp": {
+    styleId: "soft-jp",
+    name: "Soft Editorial JP",
+    language: "jp",
+    imageUrl: "/assets/generated/family-soft-light.png",
+    imageAlt: "Family lifestyle background",
+    accentColor: "#f7b267",
+    mark: "",
+    label: "日英対応",
+    chrome: "side-swipe",
+    tone: "soft Japanese editorial, lifestyle, family, habits, thoughtful essays"
+  }
+};
+
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
@@ -588,12 +689,15 @@ function toBullets(text) {
   return [clip(text, 260)];
 }
 
-function makeCoverPrompt({ headline, tweet, brand }) {
-  const palette = [brand.primaryColor, brand.accentColor, brand.paperColor, brand.inkColor].filter(Boolean).join(", ");
+function makeCoverPrompt({ headline, tweet, brand, template }) {
+  const palette = [brand.primaryColor, brand.accentColor, template?.accentColor, brand.paperColor, brand.inkColor]
+    .filter(Boolean)
+    .join(", ");
   return [
     "Create a square editorial Instagram carousel cover image with no readable text.",
     `Topic: ${headline}.`,
     tweet?.author || tweet?.handle ? `Inspired by a post from ${tweet.author || tweet.handle}.` : "",
+    template?.name ? `Visual template: ${template.name}; ${template.tone}.` : "",
     `Brand mood: ${brand.tone || "sharp, credible, modern SMB growth marketing"}.`,
     palette ? `Use this color direction: ${palette}.` : "",
     "Style: premium social media cover art, bold central metaphor, clean negative space, high contrast, no logos, no UI screenshots, no captions."
@@ -616,7 +720,13 @@ function normalizeBrand(brand = {}) {
   };
 }
 
-function buildCarousel({ tweet, manualText, url, brand = {}, cta = {} }) {
+function normalizeVisualTemplate(template = {}) {
+  const requestedStyleId = typeof template === "string" ? template : template.styleId;
+  const styleId = Object.hasOwn(VISUAL_TEMPLATES, requestedStyleId) ? requestedStyleId : DEFAULT_VISUAL_TEMPLATE;
+  return { ...VISUAL_TEMPLATES[styleId] };
+}
+
+function buildCarousel({ tweet, manualText, url, brand = {}, cta = {}, template = {} }) {
   const fallbackText = normalizeText(manualText);
   const sourceText = normalizeText(tweet?.text || fallbackText);
   if (!sourceText) {
@@ -626,6 +736,7 @@ function buildCarousel({ tweet, manualText, url, brand = {}, cta = {} }) {
   }
 
   const normalizedBrand = normalizeBrand(brand);
+  const visualTemplate = normalizeVisualTemplate(template);
 
   const normalizedCta = {
     headline: clip(cta.headline || "Turn attention into pipeline", 64),
@@ -653,7 +764,7 @@ function buildCarousel({ tweet, manualText, url, brand = {}, cta = {} }) {
       kicker: normalizedBrand.name,
       headline,
       subhead: tweet?.handle ? `Adapted from ${tweet.handle}` : "Adapted from an X post",
-      imagePrompt: makeCoverPrompt({ headline, tweet, brand: normalizedBrand })
+      imagePrompt: makeCoverPrompt({ headline, tweet, brand: normalizedBrand, template: visualTemplate })
     },
     ...contentSlides,
     {
@@ -676,6 +787,7 @@ function buildCarousel({ tweet, manualText, url, brand = {}, cta = {} }) {
       isThreadLikely: tweet?.isThreadLikely || looksLikeThread(sourceText)
     },
     brand: normalizedBrand,
+    template: visualTemplate,
     cta: normalizedCta,
     slideCount: slides.length,
     slides
@@ -684,7 +796,7 @@ function buildCarousel({ tweet, manualText, url, brand = {}, cta = {} }) {
 
 async function handleCarousel(req, res) {
   const body = await readJson(req);
-  const { url, manualText, brand, cta } = body;
+  const { url, manualText, brand, cta, template } = body;
   let tweet = null;
   let fetchWarning = null;
 
@@ -697,7 +809,7 @@ async function handleCarousel(req, res) {
     }
   }
 
-  const carousel = buildCarousel({ tweet, manualText, url, brand, cta });
+  const carousel = buildCarousel({ tweet, manualText, url, brand, cta, template });
   if (fetchWarning) carousel.fetchWarning = fetchWarning;
 
   sendJson(res, 200, carousel);
@@ -841,6 +953,7 @@ if (require.main === module) {
 
 module.exports = {
   BRAND_PRESETS,
+  VISUAL_TEMPLATES,
   buildCarousel,
   deriveHeadline,
   extractTweetId,

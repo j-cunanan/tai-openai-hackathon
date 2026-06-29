@@ -5,6 +5,7 @@ Instagram carousel generator for SMB marketing. The app turns an X/Twitter post 
 - A cover slide based on a reusable HTML template
 - Multiple content slides split from the source post or thread text
 - A final CTA slide
+- 4:5 visual templates adapted from the Instagram Viral Marketing gallery
 - Optional `gpt-image-2` cover-image generation through the OpenAI Images API
 - X post/thread fetching through xAI when `XAI_API_KEY` is present
 - Branding presets for Growth Loop, Terminal, Bullion, and Voltage
@@ -45,3 +46,5 @@ XAI_MODEL=grok-4.3 npm run dev
 ## Notes
 
 The app tries xAI first when `XAI_API_KEY` is available, then falls back to public X embed/syndication endpoints. Public endpoints can return only the visible post and may block or omit full thread content. When that happens, paste the thread text into the fallback field and the same carousel templates still render.
+
+The visual template selector applies the gallery backgrounds, typography, and overlay chrome to any generated carousel. The included templates are Black Gold Authority, Teal News Pulse, White Blue Briefing, Red Alert Hook, Warm Human Editorial, Sprint Gold Impact, Clean White Blue, and Soft Editorial JP.
