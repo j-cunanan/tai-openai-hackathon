@@ -2,7 +2,8 @@ const assert = require("node:assert/strict");
 const {
   buildCarousel,
   extractTweetId,
-  looksLikeThread
+  looksLikeThread,
+  VISUAL_TEMPLATES
 } = require("../server");
 
 const sampleThread = [
@@ -32,18 +33,27 @@ const carousel = buildCarousel({
     headline: "Turn attention into pipeline",
     body: "DM us the word GROWTH and we will map your next 30 days of Instagram content.",
     button: "DM GROWTH"
+  },
+  template: {
+    styleId: "teal-news"
   }
 });
 
+assert.equal(Object.keys(VISUAL_TEMPLATES).length, 8);
 assert.equal(carousel.slideCount, 5);
+assert.equal(carousel.template.styleId, "teal-news");
+assert.equal(carousel.template.imageUrl, "/assets/generated/tech-gold-workspace.png");
 assert.equal(carousel.slides[0].type, "cover");
 assert.equal(carousel.slides[1].type, "content");
 assert.equal(carousel.slides[3].type, "content");
 assert.equal(carousel.slides[4].type, "cta");
 assert.match(carousel.slides[0].headline, /SMBs/);
 assert.match(carousel.slides[0].imagePrompt, /upper 66%/);
+assert.match(carousel.slides[0].imagePrompt, /1080x1350/);
+assert.match(carousel.slides[0].imagePrompt, /4:5 portrait/);
 assert.match(carousel.slides[0].imagePrompt, /editorial poster/);
 assert.match(carousel.slides[0].imagePrompt, /must not contain any headline text/);
+assert.doesNotMatch(carousel.slides[0].imagePrompt, /\bsquare\b/i);
 
 const apostropheCarousel = buildCarousel({
   manualText: "Most SMBs don't need more random posts. They need one strong visual hook.",

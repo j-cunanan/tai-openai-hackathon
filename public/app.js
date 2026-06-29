@@ -55,9 +55,96 @@ const brandPresets = {
   }
 };
 
+const visualTemplates = {
+  "black-gold": {
+    styleId: "black-gold",
+    name: "Black Gold Authority",
+    language: "en",
+    imageUrl: "/assets/generated/tech-gold-workspace.png",
+    imageAlt: "Gold lit creator workspace",
+    accentColor: "#f8c94f",
+    mark: "IV",
+    label: "Viral Intel",
+    chrome: "top-swipe"
+  },
+  "sprint-jp": {
+    styleId: "sprint-jp",
+    name: "Sprint Gold Impact",
+    language: "jp",
+    imageUrl: "/assets/generated/sprint-science-track.png",
+    imageAlt: "Sprinter on indoor track",
+    accentColor: "#ffd45b",
+    label: "保存推奨",
+    chrome: "save-badge"
+  },
+  "blue-brief": {
+    styleId: "blue-brief",
+    name: "White Blue Briefing",
+    language: "bilingual",
+    imageUrl: "/assets/generated/blue-business-data.png",
+    imageAlt: "Presenter with digital data globe",
+    accentColor: "#7bd8ff",
+    label: "EN / JP Briefing",
+    chrome: "briefing-top"
+  },
+  "teal-news": {
+    styleId: "teal-news",
+    name: "Teal News Pulse",
+    language: "en",
+    imageUrl: "/assets/generated/tech-gold-workspace.png",
+    imageAlt: "Gold lit workspace adapted for teal news treatment",
+    accentColor: "#13c6a3",
+    mark: "VM",
+    label: "Viral Marketing",
+    chrome: "center-mark"
+  },
+  "white-blue-jp": {
+    styleId: "white-blue-jp",
+    name: "Clean White Blue",
+    language: "jp",
+    imageUrl: "/assets/generated/blue-business-data.png",
+    imageAlt: "Blue business data presentation",
+    accentColor: "#42b8ff",
+    label: "保存版",
+    chrome: "side-brand"
+  },
+  "warm-human": {
+    styleId: "warm-human",
+    name: "Warm Human Editorial",
+    language: "bilingual",
+    imageUrl: "/assets/generated/family-soft-light.png",
+    imageAlt: "Parent holding sleeping toddler",
+    accentColor: "#ff9f1c",
+    mark: "HV",
+    label: "Human Value",
+    chrome: "top-brand"
+  },
+  "red-alert": {
+    styleId: "red-alert",
+    name: "Red Alert Hook",
+    language: "en",
+    imageUrl: "/assets/generated/sprint-science-track.png",
+    imageAlt: "Sprint training background with red alert treatment",
+    accentColor: "#ff3131",
+    label: "Swipe for fixes",
+    chrome: "bottom-brand"
+  },
+  "soft-jp": {
+    styleId: "soft-jp",
+    name: "Soft Editorial JP",
+    language: "jp",
+    imageUrl: "/assets/generated/family-soft-light.png",
+    imageAlt: "Family lifestyle background",
+    accentColor: "#f7b267",
+    label: "日英対応",
+    chrome: "side-swipe"
+  }
+};
+
 let carousel = null;
 let activeIndex = 0;
 let coverImageUrl = "";
+const templateAssetDataUrls = new Map();
 
 function setStatus(message, tone = "neutral") {
   statusLine.textContent = message;
@@ -75,6 +162,9 @@ function readControls() {
   return {
     url: document.querySelector("#x-url").value.trim(),
     manualText: document.querySelector("#manual-text").value.trim(),
+    template: {
+      styleId: document.querySelector("#visual-template").value
+    },
     brand: {
       styleId,
       name: document.querySelector("#brand-name").value.trim(),
@@ -132,36 +222,180 @@ function fillText(root, selector, value) {
   if (node) node.textContent = value || "";
 }
 
-function fillCoverHeadline(root, value) {
-  const node = root.querySelector(".slide-headline");
+function fillHeadline(root, selector, value) {
+  const node = root.querySelector(selector);
   if (!node) return;
 
-  const words = String(value || "")
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
+  const clean = String(value || "").trim();
+  const words = clean.split(/\s+/).filter(Boolean);
+  if (words.length < 4) {
+    node.textContent = clean;
+    return;
+  }
 
-  node.replaceChildren();
-  node.setAttribute("aria-label", words.join(" "));
-
-  words.forEach((word, index) => {
-    const span = document.createElement("span");
-    span.className = `headline-word${index % 3 === 1 ? "" : " is-accent"}`;
-    span.textContent = word;
-    node.append(span);
-  });
+  const accentWordCount = Math.min(3, Math.max(2, Math.ceil(words.length * 0.32)));
+  const plainText = words.slice(0, -accentWordCount).join(" ");
+  const accentText = words.slice(-accentWordCount).join(" ");
+  const accent = document.createElement("span");
+  accent.className = "accent";
+  accent.textContent = accentText;
+  node.replaceChildren(`${plainText} `, accent);
 }
 
-function renderSlide(slide, index, { thumbnail = false } = {}) {
+function resolveTemplate() {
+  const serverTemplate = carousel?.template || {};
+  const styleId = serverTemplate.styleId || document.querySelector("#visual-template").value || "black-gold";
+  return {
+    ...(visualTemplates[styleId] || visualTemplates["black-gold"]),
+    ...serverTemplate
+  };
+}
+
+function getTemplateImageSource(template, { exportMode = false, cover = false } = {}) {
+  if (cover && coverImageUrl) return coverImageUrl;
+  if (exportMode && templateAssetDataUrls.has(template.imageUrl)) {
+    return templateAssetDataUrls.get(template.imageUrl);
+  }
+  return template.imageUrl;
+}
+
+function makeTemplateMark(template) {
+  const mark = document.createElement("span");
+  mark.className = "template-mark";
+  mark.textContent = template.mark || "IV";
+  return mark;
+}
+
+function makeTemplateDivider() {
+  const divider = document.createElement("span");
+  divider.className = "template-divider";
+  return divider;
+}
+
+function makeTemplateLabel(text) {
+  const label = document.createElement("span");
+  label.textContent = text;
+  return label;
+}
+
+function appendTemplateChrome(root, template, index) {
+  const slideNumber = String(index + 1).padStart(2, "0");
+  const total = String(carousel.slideCount).padStart(2, "0");
+
+  if (template.chrome === "save-badge") {
+    const badge = document.createElement("span");
+    badge.className = "template-save-badge";
+    badge.append("保存");
+    const small = document.createElement("small");
+    small.textContent = "推奨";
+    badge.append(small);
+    root.append(badge);
+    return;
+  }
+
+  if (template.chrome === "side-brand" || template.chrome === "side-swipe") {
+    const sideBrand = document.createElement("span");
+    sideBrand.className = "template-side-brand";
+    sideBrand.textContent = template.label;
+    root.append(sideBrand);
+    if (template.chrome === "side-swipe") {
+      const chip = document.createElement("span");
+      chip.className = "template-swipe-chip";
+      chip.textContent = "次へ";
+      root.append(chip);
+    }
+    return;
+  }
+
+  if (template.chrome === "bottom-brand") {
+    const bottomBrand = document.createElement("span");
+    bottomBrand.className = "template-bottom-brand";
+    bottomBrand.append(makeTemplateLabel(template.label), makeTemplateDivider(), makeTemplateLabel(slideNumber));
+    root.append(bottomBrand);
+    return;
+  }
+
+  const topBrand = document.createElement("div");
+  topBrand.className = "template-top-brand";
+
+  if (template.chrome === "briefing-top") {
+    topBrand.append(makeTemplateLabel(template.label), makeTemplateLabel(slideNumber));
+  } else if (template.chrome === "center-mark") {
+    topBrand.classList.add("is-centered");
+    topBrand.append(makeTemplateDivider(), makeTemplateMark(template), makeTemplateDivider());
+  } else {
+    topBrand.append(makeTemplateMark(template), makeTemplateDivider(), makeTemplateLabel(template.label));
+  }
+
+  root.append(topBrand);
+
+  if (template.chrome === "top-swipe") {
+    const count = document.createElement("span");
+    count.className = "template-slide-count";
+    count.textContent = `${slideNumber} / ${total}`;
+
+    const chip = document.createElement("span");
+    chip.className = "template-swipe-chip";
+    chip.textContent = "Swipe";
+
+    root.append(count, chip);
+  }
+}
+
+function applyVisualTemplate(root, slide, index, options = {}) {
+  const template = resolveTemplate();
+  root.classList.add("viral-template", `visual-${template.styleId}`);
+  root.dataset.visualTemplate = template.styleId;
+  root.style.setProperty("--template-accent", template.accentColor);
+
+  if (template.language === "jp" || template.language === "bilingual") {
+    root.classList.add("jp-copy");
+  }
+
+  const media = document.createElement("div");
+  media.className = "template-media";
+  const image = document.createElement("img");
+  image.className = "template-image";
+  image.src = getTemplateImageSource(template, {
+    exportMode: options.exportMode,
+    cover: slide.type === "cover"
+  });
+  image.alt = slide.type === "cover" && coverImageUrl
+    ? `${slide.headline} generated cover image`
+    : template.imageAlt;
+  media.append(image);
+
+  const grain = document.createElement("div");
+  grain.className = "template-grain";
+  root.prepend(media, grain);
+  appendTemplateChrome(root, template, index);
+}
+
+async function inlineTemplateAssetForExport() {
+  if (!carousel?.template?.imageUrl || templateAssetDataUrls.has(carousel.template.imageUrl)) return;
+
+  const response = await fetch(carousel.template.imageUrl);
+  const blob = await response.blob();
+  const dataUrl = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+  templateAssetDataUrls.set(carousel.template.imageUrl, dataUrl);
+}
+
+function renderSlide(slide, index, { thumbnail = false, exportMode = false } = {}) {
   const template = templates[slide.type];
   const root = template.content.firstElementChild.cloneNode(true);
   root.dataset.slideId = slide.id;
   root.dataset.slideType = slide.type;
   applyBrandVars(root, carousel.brand);
+  applyVisualTemplate(root, slide, index, { exportMode });
 
   if (slide.type === "cover") {
     fillText(root, ".slide-kicker", slide.kicker);
-    fillCoverHeadline(root, slide.headline);
+    fillHeadline(root, ".slide-headline", slide.headline);
     fillText(root, ".slide-subhead", slide.subhead);
     fillText(root, ".slide-footer", `${carousel.brand.tagline} / ${carousel.slideCount} slides`);
     const image = root.querySelector(".cover-image");
@@ -175,7 +409,7 @@ function renderSlide(slide, index, { thumbnail = false } = {}) {
   if (slide.type === "content") {
     fillText(root, ".slide-eyebrow", slide.eyebrow);
     fillText(root, ".slide-number", `${index + 1}`.padStart(2, "0"));
-    fillText(root, ".content-title", slide.title);
+    fillHeadline(root, ".content-title", slide.title);
     fillText(root, ".content-body", slide.body);
     fillText(root, ".slide-footer", carousel.brand.name);
     const list = root.querySelector(".content-bullets");
@@ -188,7 +422,7 @@ function renderSlide(slide, index, { thumbnail = false } = {}) {
 
   if (slide.type === "cta") {
     fillText(root, ".slide-eyebrow", slide.eyebrow);
-    fillText(root, ".cta-title", slide.headline);
+    fillHeadline(root, ".cta-title", slide.headline);
     fillText(root, ".cta-body", slide.body);
     fillText(root, ".cta-button", slide.button);
     fillText(root, ".slide-footer", carousel.brand.name);
@@ -269,7 +503,7 @@ async function generateCoverImage(options = {}) {
   try {
     const result = await postJson("/api/cover-image", {
       prompt,
-      size: "1024x1024",
+      size: "1024x1536",
       quality: "medium"
     });
     coverImageUrl = result.imageUrl;
@@ -296,7 +530,7 @@ function exportHtml() {
   if (!carousel) return "";
 
   const slideMarkup = carousel.slides
-    .map((slide, index) => renderSlide(slide, index).outerHTML)
+    .map((slide, index) => renderSlide(slide, index, { exportMode: true }).outerHTML)
     .join("\n");
 
   return `<!doctype html>
@@ -304,7 +538,7 @@ function exportHtml() {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escapeHtml(carousel.slides[0].headline)} - Instagram Carousel</title>
+<title>${escapeHtml(carousel.slides[0].headline)} - ${escapeHtml(carousel.template.name)} Carousel</title>
 <style>
 ${document.querySelector("link[rel='stylesheet']").dataset.inlineCss || ""}
 .export-sheet { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; padding: 24px; background: #e9ece5; }
@@ -376,12 +610,14 @@ nextButton.addEventListener("click", () => {
 
 copyButton.addEventListener("click", async () => {
   await inlineCssForExport();
+  await inlineTemplateAssetForExport();
   await navigator.clipboard.writeText(exportHtml());
   setStatus("HTML copied to clipboard.", "success");
 });
 
 downloadButton.addEventListener("click", async () => {
   await inlineCssForExport();
+  await inlineTemplateAssetForExport();
   const blob = new Blob([exportHtml()], { type: "text/html" });
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
