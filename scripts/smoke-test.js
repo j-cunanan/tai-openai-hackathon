@@ -43,7 +43,7 @@ assert.equal(Object.keys(VISUAL_TEMPLATES).length, 8);
 assert.equal(carousel.slideCount, 5);
 assert.equal(carousel.template.styleId, "teal-news");
 assert.equal(carousel.template.imageUrl, "/assets/generated/tech-gold-workspace.png");
-assert.match(carousel.template.imagePrompt, /reusable editorial Instagram carousel background image/);
+assert.match(carousel.template.imagePrompt, /editorial Instagram carousel cover image/);
 assert.match(carousel.template.imagePrompt, /Key ideas to visualize/);
 assert.equal(carousel.slides[0].type, "cover");
 assert.equal(carousel.slides[1].type, "content");

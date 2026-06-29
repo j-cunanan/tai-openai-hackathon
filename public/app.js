@@ -140,7 +140,7 @@ const visualTemplates = {
 
 let carousel = null;
 let activeIndex = 0;
-let deckImageUrl = "";
+let coverImageUrl = "";
 const templateAssetDataUrls = new Map();
 
 function setStatus(message, tone = "neutral") {
@@ -243,8 +243,8 @@ function resolveTemplate() {
   };
 }
 
-function getTemplateImageSource(template, { exportMode = false } = {}) {
-  if (deckImageUrl) return deckImageUrl;
+function getTemplateImageSource(template, { exportMode = false, useGeneratedImage = false } = {}) {
+  if (useGeneratedImage && coverImageUrl) return coverImageUrl;
   if (exportMode && templateAssetDataUrls.has(template.imageUrl)) {
     return templateAssetDataUrls.get(template.imageUrl);
   }
@@ -349,10 +349,11 @@ function applyVisualTemplate(root, slide, index, options = {}) {
   const image = document.createElement("img");
   image.className = "template-image";
   image.src = getTemplateImageSource(template, {
-    exportMode: options.exportMode
+    exportMode: options.exportMode,
+    useGeneratedImage: slide.type === "cover"
   });
-  image.alt = deckImageUrl
-    ? `${carousel.slides[0]?.headline || "Carousel"} generated background image`
+  image.alt = slide.type === "cover" && coverImageUrl
+    ? `${slide.headline} generated cover image`
     : template.imageAlt;
   media.append(image);
 
@@ -363,7 +364,6 @@ function applyVisualTemplate(root, slide, index, options = {}) {
 }
 
 async function inlineTemplateAssetForExport() {
-  if (deckImageUrl) return;
   if (!carousel?.template?.imageUrl || templateAssetDataUrls.has(carousel.template.imageUrl)) return;
 
   const response = await fetch(carousel.template.imageUrl);
@@ -391,9 +391,9 @@ function renderSlide(slide, index, { thumbnail = false, exportMode = false } = {
     fillText(root, ".slide-subhead", slide.subhead);
     fillText(root, ".slide-footer", `${carousel.brand.tagline} / ${carousel.slideCount} slides`);
     const image = root.querySelector(".cover-image");
-    if (deckImageUrl) {
-      image.src = deckImageUrl;
-      image.alt = `${slide.headline} generated background image`;
+    if (coverImageUrl) {
+      image.src = coverImageUrl;
+      image.alt = `${slide.headline} generated cover image`;
       image.classList.add("has-image");
     }
   }
@@ -462,25 +462,25 @@ function render() {
   generateImageButton.disabled = false;
 }
 
-async function generateTemplateImage() {
+async function generateCoverImage() {
   const prompt = carousel?.template?.imagePrompt || carousel?.slides?.[0]?.imagePrompt;
   if (!prompt) return;
 
-  setStatus("Step 2/2: Generating post-specific image...");
+  setStatus("Step 2/2: Generating post-specific cover image...");
   generateImageButton.disabled = true;
 
   try {
-    const result = await postJson("/api/template-image", {
+    const result = await postJson("/api/cover-image", {
       prompt,
       size: "1024x1024",
       quality: "medium"
     });
-    deckImageUrl = result.imageUrl;
-    setStatus(`Generated post-specific image with ${result.model}.`, "success");
+    coverImageUrl = result.imageUrl;
+    setStatus(`Generated cover image with ${result.model}.`, "success");
     render();
   } catch (error) {
     const message = error.code === "openai_key_missing"
-      ? "Carousel created. Set OPENAI_API_KEY to generate post-specific images."
+      ? "Carousel created. Set OPENAI_API_KEY to generate post-specific cover images."
       : error.message;
     setStatus(message, "warning");
   } finally {
@@ -539,7 +539,7 @@ form.addEventListener("submit", async (event) => {
   }
 
   setStatus("Step 1/2: Fetching and converting content...");
-  deckImageUrl = "";
+  coverImageUrl = "";
 
   try {
     carousel = await postJson("/api/carousel", payload);
@@ -549,7 +549,7 @@ form.addEventListener("submit", async (event) => {
     setStatus(carousel.fetchWarning || `Created ${carousel.slideCount} slides.`, carousel.fetchWarning ? "warning" : "success");
 
     if (document.querySelector("#auto-image").checked) {
-      await generateTemplateImage();
+      await generateCoverImage();
     }
   } catch (error) {
     setStatus(error.message, "warning");
@@ -585,7 +585,7 @@ downloadButton.addEventListener("click", async () => {
   setStatus("HTML downloaded.", "success");
 });
 
-generateImageButton.addEventListener("click", generateTemplateImage);
+generateImageButton.addEventListener("click", generateCoverImage);
 
 document.querySelector("#brand-preset").addEventListener("change", (event) => {
   applyBrandPreset(event.target.value);

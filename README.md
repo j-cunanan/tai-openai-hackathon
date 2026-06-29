@@ -6,7 +6,7 @@ Instagram carousel generator for SMB marketing. The app turns an X/Twitter post 
 - Multiple content slides split from the source post or thread text
 - A final CTA slide
 - 4:5 visual templates adapted from the Instagram Viral Marketing gallery
-- Optional `gpt-image-2` post-specific background generation through the OpenAI Images API
+- Optional `gpt-image-2` post-specific cover-image generation through the OpenAI Images API
 - X post/thread fetching through xAI when `XAI_API_KEY` is present
 - Branding presets for Growth Loop, Terminal, Bullion, and Voltage
 - HTML copy/download export for reuse
@@ -19,7 +19,7 @@ npm run dev
 
 Open `http://localhost:5173`.
 
-To enable post-specific image generation:
+To enable post-specific cover image generation:
 
 ```bash
 OPENAI_API_KEY=your_api_key npm run dev
@@ -47,4 +47,4 @@ XAI_MODEL=grok-4.3 npm run dev
 
 The app tries xAI first when `XAI_API_KEY` is available, then falls back to public X embed/syndication endpoints. Public endpoints can return only the visible post and may block or omit full thread content. When that happens, paste the thread text into the fallback field and the same carousel templates still render.
 
-The visual template selector applies the gallery typography and overlay chrome to any generated carousel. When `OPENAI_API_KEY` is set, the app adds a second step that generates a reusable background image from the X post content and selected template, then applies it across the whole deck. Without an API key, it falls back to the bundled gallery images. The included templates are Black Gold Authority, Teal News Pulse, White Blue Briefing, Red Alert Hook, Warm Human Editorial, Sprint Gold Impact, Clean White Blue, and Soft Editorial JP.
+The visual template selector applies the gallery backgrounds, typography, and overlay chrome to any generated carousel. When `OPENAI_API_KEY` is set, the app adds a second step that generates a post-specific cover image from the X post content and selected template. Content and CTA slides keep the selected template background instead of reusing the cover image. Without an API key, the cover also falls back to the bundled gallery image. The included templates are Black Gold Authority, Teal News Pulse, White Blue Briefing, Red Alert Hook, Warm Human Editorial, Sprint Gold Impact, Clean White Blue, and Soft Editorial JP.

@@ -689,7 +689,7 @@ function toBullets(text) {
   return [clip(text, 260)];
 }
 
-function makeTemplateImagePrompt({ headline, sourceText, contentSlides, tweet, brand, template }) {
+function makeCoverImagePrompt({ headline, sourceText, contentSlides, tweet, brand, template }) {
   const palette = [brand.primaryColor, brand.accentColor, template?.accentColor, brand.paperColor, brand.inkColor]
     .filter(Boolean)
     .join(", ");
@@ -701,7 +701,7 @@ function makeTemplateImagePrompt({ headline, sourceText, contentSlides, tweet, b
   const sourceExcerpt = clip(sourceText, 520);
 
   return [
-    "Create one reusable editorial Instagram carousel background image with no readable text.",
+    "Create one editorial Instagram carousel cover image with no readable text.",
     `Topic: ${headline}.`,
     takeaways ? `Key ideas to visualize: ${takeaways}.` : "",
     sourceExcerpt ? `Source context: ${sourceExcerpt}.` : "",
@@ -709,7 +709,7 @@ function makeTemplateImagePrompt({ headline, sourceText, contentSlides, tweet, b
     template?.name ? `Visual template: ${template.name}; ${template.tone}.` : "",
     `Brand mood: ${brand.tone || "sharp, credible, modern SMB growth marketing"}.`,
     palette ? `Use this color direction: ${palette}.` : "",
-    "Composition: vertical 4:5 social background, bold central metaphor, subject safely framed behind text overlays, strong negative space in the lower third.",
+    "Composition: vertical 4:5 social cover, bold central metaphor, subject safely framed behind headline overlays, strong negative space in the lower third.",
     "Style: premium social media cover art, high contrast, no logos, no UI screenshots, no captions, no letters, no words, no numbers."
   ].filter(Boolean).join(" ");
 }
@@ -766,7 +766,7 @@ function buildCarousel({ tweet, manualText, url, brand = {}, cta = {}, template 
     bullets: toBullets(group),
     sourceIndex: index + 1
   }));
-  const imagePrompt = makeTemplateImagePrompt({
+  const imagePrompt = makeCoverImagePrompt({
     headline,
     sourceText,
     contentSlides,
@@ -863,11 +863,11 @@ async function imageUrlToDataUrl(imageUrl) {
   }
 }
 
-async function handleTemplateImage(req, res) {
+async function handleCoverImage(req, res) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     sendJson(res, 400, {
-      error: "OPENAI_API_KEY is not set. Start the server with an OpenAI API key to generate template images.",
+      error: "OPENAI_API_KEY is not set. Start the server with an OpenAI API key to generate cover images.",
       code: "openai_key_missing"
     });
     return;
@@ -961,8 +961,8 @@ async function route(req, res) {
       return;
     }
 
-    if (req.method === "POST" && ["/api/template-image", "/api/cover-image"].includes(requestUrl.pathname)) {
-      await handleTemplateImage(req, res);
+    if (req.method === "POST" && requestUrl.pathname === "/api/cover-image") {
+      await handleCoverImage(req, res);
       return;
     }
 
