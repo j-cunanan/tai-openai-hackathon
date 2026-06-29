@@ -689,18 +689,28 @@ function toBullets(text) {
   return [clip(text, 260)];
 }
 
-function makeCoverPrompt({ headline, tweet, brand, template }) {
+function makeTemplateImagePrompt({ headline, sourceText, contentSlides, tweet, brand, template }) {
   const palette = [brand.primaryColor, brand.accentColor, template?.accentColor, brand.paperColor, brand.inkColor]
     .filter(Boolean)
     .join(", ");
+  const takeaways = contentSlides
+    .map((slide) => slide.title)
+    .filter(Boolean)
+    .slice(0, 5)
+    .join("; ");
+  const sourceExcerpt = clip(sourceText, 520);
+
   return [
-    "Create a square editorial Instagram carousel cover image with no readable text.",
+    "Create one reusable editorial Instagram carousel background image with no readable text.",
     `Topic: ${headline}.`,
+    takeaways ? `Key ideas to visualize: ${takeaways}.` : "",
+    sourceExcerpt ? `Source context: ${sourceExcerpt}.` : "",
     tweet?.author || tweet?.handle ? `Inspired by a post from ${tweet.author || tweet.handle}.` : "",
     template?.name ? `Visual template: ${template.name}; ${template.tone}.` : "",
     `Brand mood: ${brand.tone || "sharp, credible, modern SMB growth marketing"}.`,
     palette ? `Use this color direction: ${palette}.` : "",
-    "Style: premium social media cover art, bold central metaphor, clean negative space, high contrast, no logos, no UI screenshots, no captions."
+    "Composition: vertical 4:5 social background, bold central metaphor, subject safely framed behind text overlays, strong negative space in the lower third.",
+    "Style: premium social media cover art, high contrast, no logos, no UI screenshots, no captions, no letters, no words, no numbers."
   ].filter(Boolean).join(" ");
 }
 
@@ -756,6 +766,18 @@ function buildCarousel({ tweet, manualText, url, brand = {}, cta = {}, template 
     bullets: toBullets(group),
     sourceIndex: index + 1
   }));
+  const imagePrompt = makeTemplateImagePrompt({
+    headline,
+    sourceText,
+    contentSlides,
+    tweet,
+    brand: normalizedBrand,
+    template: visualTemplate
+  });
+  const templateWithPrompt = {
+    ...visualTemplate,
+    imagePrompt
+  };
 
   const slides = [
     {
@@ -764,7 +786,7 @@ function buildCarousel({ tweet, manualText, url, brand = {}, cta = {}, template 
       kicker: normalizedBrand.name,
       headline,
       subhead: tweet?.handle ? `Adapted from ${tweet.handle}` : "Adapted from an X post",
-      imagePrompt: makeCoverPrompt({ headline, tweet, brand: normalizedBrand, template: visualTemplate })
+      imagePrompt
     },
     ...contentSlides,
     {
@@ -787,7 +809,7 @@ function buildCarousel({ tweet, manualText, url, brand = {}, cta = {}, template 
       isThreadLikely: tweet?.isThreadLikely || looksLikeThread(sourceText)
     },
     brand: normalizedBrand,
-    template: visualTemplate,
+    template: templateWithPrompt,
     cta: normalizedCta,
     slideCount: slides.length,
     slides
@@ -826,11 +848,26 @@ async function handleTweet(req, res, requestUrl) {
   sendJson(res, 200, tweet);
 }
 
-async function handleCoverImage(req, res) {
+async function imageUrlToDataUrl(imageUrl) {
+  if (!/^https?:\/\//i.test(String(imageUrl || ""))) return imageUrl;
+
+  try {
+    const response = await fetch(imageUrl);
+    if (!response.ok) return imageUrl;
+
+    const contentType = response.headers.get("content-type")?.split(";")[0] || "image/png";
+    const buffer = Buffer.from(await response.arrayBuffer());
+    return `data:${contentType};base64,${buffer.toString("base64")}`;
+  } catch {
+    return imageUrl;
+  }
+}
+
+async function handleTemplateImage(req, res) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     sendJson(res, 400, {
-      error: "OPENAI_API_KEY is not set. Start the server with an OpenAI API key to generate cover images.",
+      error: "OPENAI_API_KEY is not set. Start the server with an OpenAI API key to generate template images.",
       code: "openai_key_missing"
     });
     return;
@@ -868,7 +905,7 @@ async function handleCoverImage(req, res) {
   }
 
   const item = result.data?.[0] || {};
-  const imageUrl = item.b64_json ? `data:image/png;base64,${item.b64_json}` : item.url;
+  const imageUrl = item.b64_json ? `data:image/png;base64,${item.b64_json}` : await imageUrlToDataUrl(item.url);
   if (!imageUrl) {
     sendJson(res, 502, { error: "OpenAI response did not include an image." });
     return;
@@ -924,8 +961,8 @@ async function route(req, res) {
       return;
     }
 
-    if (req.method === "POST" && requestUrl.pathname === "/api/cover-image") {
-      await handleCoverImage(req, res);
+    if (req.method === "POST" && ["/api/template-image", "/api/cover-image"].includes(requestUrl.pathname)) {
+      await handleTemplateImage(req, res);
       return;
     }
 
