@@ -141,6 +141,9 @@ const visualTemplates = {
 let carousel = null;
 let activeIndex = 0;
 let coverImageUrl = "";
+let coverImageSource = "fallback";
+let carouselRunId = 0;
+let coverImageRequestSeq = 0;
 const templateAssetDataUrls = new Map();
 
 function setStatus(message, tone = "neutral") {
@@ -189,6 +192,18 @@ async function postJson(url, payload) {
   }
 
   return data;
+}
+
+function logClientEvent(event, details = {}) {
+  const payload = { event, details };
+  console.info(`[carousel] ${event}`, details);
+  fetch("/api/client-log", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload)
+  }).catch(() => {
+    // Dev diagnostics should never interrupt carousel generation.
+  });
 }
 
 function applyBrandVars(node, brand) {
@@ -348,14 +363,19 @@ function applyVisualTemplate(root, slide, index, options = {}) {
   media.className = "template-media";
   const image = document.createElement("img");
   image.className = "template-image";
+  const usingGeneratedCover = slide.type === "cover" && Boolean(coverImageUrl);
   image.src = getTemplateImageSource(template, {
     exportMode: options.exportMode,
     useGeneratedImage: slide.type === "cover"
   });
-  image.alt = slide.type === "cover" && coverImageUrl
+  image.dataset.imageSource = usingGeneratedCover ? "generated" : "fallback";
+  image.alt = usingGeneratedCover
     ? `${slide.headline} generated cover image`
     : template.imageAlt;
   media.append(image);
+  if (slide.type === "cover") {
+    root.dataset.coverImageSource = usingGeneratedCover ? coverImageSource : "fallback";
+  }
 
   const grain = document.createElement("div");
   grain.className = "template-grain";
@@ -466,6 +486,14 @@ async function generateCoverImage() {
   const prompt = carousel?.template?.imagePrompt || carousel?.slides?.[0]?.imagePrompt;
   if (!prompt) return;
 
+  const runId = carouselRunId;
+  const requestSeq = ++coverImageRequestSeq;
+  logClientEvent("cover-image request-started", {
+    carouselRunId: runId,
+    requestSeq,
+    template: carousel?.template?.styleId,
+    promptChars: prompt.length
+  });
   setStatus("Step 2/2: Generating post-specific cover image...");
   generateImageButton.disabled = true;
 
@@ -475,10 +503,34 @@ async function generateCoverImage() {
       size: "1024x1024",
       quality: "medium"
     });
+    if (runId !== carouselRunId || requestSeq !== coverImageRequestSeq) {
+      logClientEvent("cover-image ignored-stale", {
+        carouselRunId: runId,
+        requestSeq,
+        serverRequestId: result.requestId,
+        reason: "carousel changed before image completed"
+      });
+      return;
+    }
     coverImageUrl = result.imageUrl;
+    coverImageSource = "generated";
+    logClientEvent("cover-image applied", {
+      carouselRunId: runId,
+      requestSeq,
+      serverRequestId: result.requestId,
+      source: coverImageSource,
+      template: carousel?.template?.styleId,
+      isDataUrl: coverImageUrl.startsWith("data:"),
+      dataUrlChars: coverImageUrl.startsWith("data:") ? coverImageUrl.length : 0
+    });
     setStatus(`Generated cover image with ${result.model}.`, "success");
     render();
   } catch (error) {
+    logClientEvent("cover-image failed", {
+      carouselRunId: runId,
+      requestSeq,
+      reason: error.message
+    });
     const message = error.code === "openai_key_missing"
       ? "Carousel created. Set OPENAI_API_KEY to generate post-specific cover images."
       : error.message;
@@ -539,13 +591,21 @@ form.addEventListener("submit", async (event) => {
   }
 
   setStatus("Step 1/2: Fetching and converting content...");
+  carouselRunId += 1;
   coverImageUrl = "";
+  coverImageSource = "fallback";
 
   try {
     carousel = await postJson("/api/carousel", payload);
     activeIndex = 0;
     await inlineCssForExport();
     render();
+    logClientEvent("carousel rendered", {
+      carouselRunId,
+      source: coverImageSource,
+      slideType: "cover",
+      template: carousel?.template?.styleId
+    });
     setStatus(carousel.fetchWarning || `Created ${carousel.slideCount} slides.`, carousel.fetchWarning ? "warning" : "success");
 
     if (document.querySelector("#auto-image").checked) {

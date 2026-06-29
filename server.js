@@ -845,6 +845,25 @@ async function handleCarousel(req, res) {
   sendJson(res, 200, carousel);
 }
 
+async function handleClientLog(req, res) {
+  const body = await readJson(req);
+  const event = clip(body.event || "client-event", 80);
+  const details = body.details && typeof body.details === "object" ? body.details : {};
+  logServer(`client ${event}`, {
+    carouselRunId: details.carouselRunId,
+    requestSeq: details.requestSeq,
+    serverRequestId: details.serverRequestId,
+    source: details.source,
+    slideType: details.slideType,
+    template: details.template,
+    isDataUrl: details.isDataUrl,
+    dataUrlChars: details.dataUrlChars,
+    promptChars: details.promptChars,
+    reason: details.reason
+  });
+  sendJson(res, 200, { ok: true });
+}
+
 async function handleTweet(req, res, requestUrl) {
   const url = requestUrl.searchParams.get("url");
   if (!url) {
@@ -964,6 +983,7 @@ async function handleCoverImage(req, res) {
   });
 
   sendJson(res, 200, {
+    requestId,
     imageUrl,
     revisedPrompt: item.revised_prompt || "",
     model: IMAGE_MODEL
@@ -1010,6 +1030,11 @@ async function route(req, res) {
 
     if (req.method === "POST" && requestUrl.pathname === "/api/carousel") {
       await handleCarousel(req, res);
+      return;
+    }
+
+    if (req.method === "POST" && requestUrl.pathname === "/api/client-log") {
+      await handleClientLog(req, res);
       return;
     }
 
