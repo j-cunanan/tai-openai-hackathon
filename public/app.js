@@ -249,6 +249,14 @@ function fillHeadline(root, selector, value) {
   node.replaceChildren(`${plainText} `, accent);
 }
 
+function normalizeSlideMedia(slide) {
+  const mediaUrls = Array.isArray(slide.mediaUrls) ? slide.mediaUrls : [];
+  const urls = [...mediaUrls, slide.mediaUrl]
+    .map((url) => String(url || "").trim())
+    .filter(Boolean);
+  return [...new Set(urls)];
+}
+
 function resolveTemplate() {
   const serverTemplate = carousel?.template || {};
   const styleId = serverTemplate.styleId || document.querySelector("#visual-template").value || "black-gold";
@@ -424,6 +432,22 @@ function renderSlide(slide, index, { thumbnail = false, exportMode = false } = {
     fillHeadline(root, ".content-title", slide.title);
     fillText(root, ".content-body", slide.body);
     fillText(root, ".slide-footer", carousel.brand.name);
+    const mediaUrls = normalizeSlideMedia(slide).slice(0, 4);
+    const media = root.querySelector(".content-media");
+    const mediaGrid = root.querySelector(".content-media-grid");
+    if (mediaUrls.length && media && mediaGrid) {
+      root.classList.add("has-content-media");
+      media.hidden = false;
+      media.dataset.count = String(mediaUrls.length);
+      media.setAttribute("aria-label", "Source images from the X thread");
+      for (const mediaUrl of mediaUrls) {
+        const image = document.createElement("img");
+        image.src = mediaUrl;
+        image.alt = `${slide.title || "Thread post"} source image`;
+        image.loading = thumbnail ? "eager" : "lazy";
+        mediaGrid.append(image);
+      }
+    }
     const list = root.querySelector(".content-bullets");
     for (const bullet of slide.bullets) {
       const item = document.createElement("li");
