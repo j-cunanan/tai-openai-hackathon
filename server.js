@@ -592,17 +592,18 @@ function makeCoverPrompt({ headline, tweet, brand }) {
   const palette = [brand.primaryColor, brand.accentColor, brand.paperColor, brand.inkColor].filter(Boolean).join(", ");
   const sourceInsight = clip(normalizeText(tweet?.text || headline), 360);
   return [
-    "Create a 1024x1024 square Instagram carousel cover image with viral potential and no readable text.",
+    "Create the text-free image layer for a 1024x1024 square Instagram editorial carousel cover.",
     `Topic: ${headline}.`,
     sourceInsight ? `Core insight to visualize: ${sourceInsight}.` : "",
     tweet?.author || tweet?.handle ? `Inspired by a post from ${tweet.author || tweet.handle}.` : "",
     `Brand mood: ${brand.tone || "sharp, credible, modern SMB growth marketing"}.`,
     palette ? `Use this color direction: ${palette}.` : "",
-    "Composition requirement: the HTML template places this art in the upper 66% of the cover slide, so put the main subject, action, contrast, and visual hook in the top two-thirds of the square.",
-    "Keep the lower 34% visually calm: soft gradient, clean shadow, or simple negative space only, with no faces, hands, objects, high-detail texture, hard edges, or focal points where headline text will sit.",
-    "Viral creative direction: build a thumb-stopping editorial poster around one surprising central metaphor, strong curiosity gap, dramatic scale contrast, clear foreground/background separation, and social-native energy.",
-    "Make it feel premium and brand-safe for SMB growth marketing: bold, polished, high contrast, cinematic lighting, sharp silhouette, minimal clutter, instantly legible as a concept at phone size.",
-    "Avoid: readable words, captions, logos, UI screenshots, charts, tweet screenshots, dense collage, tiny details, low-contrast bottom area, or decorative filler."
+    "Composition requirement: the HTML template crops and emphasizes the art in the upper 66% of the cover slide, so put the main subject, action, contrast, and visual hook in the top two-thirds of the square.",
+    "Visual style: AI-generated editorial poster art, cinematic social-cover composition, one dominant central subject or metaphor, dramatic scale contrast, sharp foreground/background separation, premium lighting, high contrast, and polished magazine-cover energy.",
+    "Supporting details may form a dense but controlled collage in the upper half only; keep them large, symbolic, and instantly legible at phone size.",
+    "Keep the lower 34% dark and low-detail with a smooth fade-ready transition: simple shadow, soft gradient, atmospheric haze, or negative space only. Avoid faces, hands, objects, hard edges, high-detail texture, or focal points in the lower third because large HTML typography will sit there.",
+    "The generated image must not contain any headline text; the HTML template adds all typography in cyan and white.",
+    "Avoid: readable words, captions, letters, numbers, logos, watermarks, UI screenshots, charts, tweet screenshots, cluttered micro-details, low-contrast bottom area, or decorative filler."
   ].filter(Boolean).join(" ");
 }
 

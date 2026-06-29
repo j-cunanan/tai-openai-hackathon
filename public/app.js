@@ -132,6 +132,26 @@ function fillText(root, selector, value) {
   if (node) node.textContent = value || "";
 }
 
+function fillCoverHeadline(root, value) {
+  const node = root.querySelector(".slide-headline");
+  if (!node) return;
+
+  const words = String(value || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  node.replaceChildren();
+  node.setAttribute("aria-label", words.join(" "));
+
+  words.forEach((word, index) => {
+    const span = document.createElement("span");
+    span.className = `headline-word${index % 3 === 1 ? "" : " is-accent"}`;
+    span.textContent = word;
+    node.append(span);
+  });
+}
+
 function renderSlide(slide, index, { thumbnail = false } = {}) {
   const template = templates[slide.type];
   const root = template.content.firstElementChild.cloneNode(true);
@@ -141,7 +161,7 @@ function renderSlide(slide, index, { thumbnail = false } = {}) {
 
   if (slide.type === "cover") {
     fillText(root, ".slide-kicker", slide.kicker);
-    fillText(root, ".slide-headline", slide.headline);
+    fillCoverHeadline(root, slide.headline);
     fillText(root, ".slide-subhead", slide.subhead);
     fillText(root, ".slide-footer", `${carousel.brand.tagline} / ${carousel.slideCount} slides`);
     const image = root.querySelector(".cover-image");
@@ -225,7 +245,7 @@ function buildCoverImagePrompt({ recreate = false } = {}) {
 
   if (recreate) {
     additions.push(
-      "Create a fresh alternate cover concept for the same carousel: keep the topic, brand palette, and upper-66-percent composition rule, but change the central metaphor, camera angle, and visual tension."
+      "Create a fresh alternate editorial cover concept for the same carousel: keep the topic, brand palette, text-free art direction, and upper-two-thirds composition rule, but change the central metaphor, camera angle, and visual tension."
     );
   }
 

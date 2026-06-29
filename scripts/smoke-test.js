@@ -42,7 +42,8 @@ assert.equal(carousel.slides[3].type, "content");
 assert.equal(carousel.slides[4].type, "cta");
 assert.match(carousel.slides[0].headline, /SMBs/);
 assert.match(carousel.slides[0].imagePrompt, /upper 66%/);
-assert.match(carousel.slides[0].imagePrompt, /viral potential/);
+assert.match(carousel.slides[0].imagePrompt, /editorial poster/);
+assert.match(carousel.slides[0].imagePrompt, /must not contain any headline text/);
 
 const apostropheCarousel = buildCarousel({
   manualText: "Most SMBs don't need more random posts. They need one strong visual hook.",
