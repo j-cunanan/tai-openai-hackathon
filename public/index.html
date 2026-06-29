@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Instagram Carousel Generator</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <aside class="control-panel" aria-label="Carousel controls">
+        <div class="brand-lockup">
+          <div class="mark" aria-hidden="true">C</div>
+          <div>
+            <h1>Carousel Forge</h1>
+            <p>Tweet to Instagram carousel</p>
+          </div>
+        </div>
+
+        <form id="generator-form" class="form-stack">
+          <label>
+            <span>X link</span>
+            <input id="x-url" name="url" type="url" placeholder="https://x.com/user/status/123..." autocomplete="off">
+          </label>
+
+          <label>
+            <span>Fallback source text</span>
+            <textarea id="manual-text" name="manualText" rows="5" placeholder="Paste the post or thread when X blocks public fetch."></textarea>
+          </label>
+
+          <label>
+            <span>Brand kit</span>
+            <select id="brand-preset" name="brandPreset">
+              <option value="default">Growth Loop</option>
+              <option value="terminal">Terminal / neon green mono</option>
+              <option value="bullion">Bullion / black + gold</option>
+              <option value="voltage">Voltage / electric blue</option>
+            </select>
+          </label>
+
+          <div class="field-grid">
+            <label>
+              <span>Brand</span>
+              <input id="brand-name" name="brandName" type="text" value="Growth Loop">
+            </label>
+            <label>
+              <span>Tagline</span>
+              <input id="brand-tagline" name="brandTagline" type="text" value="Instagram growth system for SMBs">
+            </label>
+          </div>
+
+          <fieldset class="swatches">
+            <legend>Template colors</legend>
+            <label>
+              <span>Ink</span>
+              <input id="ink-color" type="color" value="#111827">
+            </label>
+            <label>
+              <span>Paper</span>
+              <input id="paper-color" type="color" value="#fff8ed">
+            </label>
+            <label>
+              <span>Brand</span>
+              <input id="primary-color" type="color" value="#111827">
+            </label>
+            <label>
+              <span>Accent</span>
+              <input id="accent-color" type="color" value="#ff6b35">
+            </label>
+          </fieldset>
+
+          <label>
+            <span>CTA headline</span>
+            <input id="cta-headline" type="text" value="Turn attention into pipeline">
+          </label>
+
+          <label>
+            <span>CTA body</span>
+            <textarea id="cta-body" rows="3">DM us the word GROWTH and we will map your next 30 days of Instagram content.</textarea>
+          </label>
+
+          <label>
+            <span>CTA button</span>
+            <input id="cta-button" type="text" value="DM GROWTH">
+          </label>
+
+          <label class="check-row">
+            <input id="auto-image" type="checkbox" checked>
+            <span>Generate cover image with gpt-image-2</span>
+          </label>
+
+          <button class="primary-action" type="submit">Generate carousel</button>
+          <p id="status-line" class="status-line" role="status">Ready</p>
+        </form>
+      </aside>
+
+      <section class="workspace" aria-label="Carousel preview">
+        <header class="workspace-header">
+          <div>
+            <p class="eyebrow">1080 x 1080 HTML templates</p>
+            <h2 id="deck-title">Generated carousel</h2>
+          </div>
+          <div class="header-actions">
+            <button id="copy-html" type="button" disabled>Copy HTML</button>
+            <button id="download-html" type="button" disabled>Download HTML</button>
+          </div>
+        </header>
+
+        <div class="preview-grid">
+          <nav id="thumbnail-rail" class="thumbnail-rail" aria-label="Slides"></nav>
+
+          <div class="stage">
+            <div id="slide-stage" class="slide-stage" aria-live="polite">
+              <article class="empty-state">
+                <h3>Paste an X link</h3>
+                <p>The generated cover, content slides, and CTA slide will render here.</p>
+              </article>
+            </div>
+            <div class="stage-controls">
+              <button id="prev-slide" type="button" disabled>Previous</button>
+              <span id="slide-count">0 / 0</span>
+              <button id="next-slide" type="button" disabled>Next</button>
+            </div>
+          </div>
+
+          <aside class="slide-notes">
+            <h3>Cover prompt</h3>
+            <p id="cover-prompt">No prompt yet.</p>
+            <button id="generate-image" type="button" disabled>Regenerate cover image</button>
+          </aside>
+        </div>
+      </section>
+    </main>
+
+    <template id="cover-slide-template">
+      <article class="slide slide-cover">
+        <div class="cover-image-shell">
+          <img class="cover-image" alt="">
+          <div class="cover-placeholder" aria-hidden="true">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+        </div>
+        <div class="slide-content">
+          <p class="slide-kicker"></p>
+          <h2 class="slide-headline"></h2>
+          <p class="slide-subhead"></p>
+        </div>
+        <p class="slide-footer"></p>
+      </article>
+    </template>
+
+    <template id="content-slide-template">
+      <article class="slide slide-content-card">
+        <div class="slide-topline">
+          <p class="slide-eyebrow"></p>
+          <p class="slide-number"></p>
+        </div>
+        <h2 class="content-title"></h2>
+        <ul class="content-bullets"></ul>
+        <p class="content-body"></p>
+        <p class="slide-footer"></p>
+      </article>
+    </template>
+
+    <template id="cta-slide-template">
+      <article class="slide slide-cta">
+        <p class="slide-eyebrow"></p>
+        <h2 class="cta-title"></h2>
+        <p class="cta-body"></p>
+        <div class="cta-button"></div>
+        <p class="slide-footer"></p>
+      </article>
+    </template>
+
+    <script src="/app.js" defer></script>
+  </body>
+</html>

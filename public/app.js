@@ -1,0 +1,335 @@
+const form = document.querySelector("#generator-form");
+const statusLine = document.querySelector("#status-line");
+const stage = document.querySelector("#slide-stage");
+const thumbnailRail = document.querySelector("#thumbnail-rail");
+const deckTitle = document.querySelector("#deck-title");
+const slideCount = document.querySelector("#slide-count");
+const prevButton = document.querySelector("#prev-slide");
+const nextButton = document.querySelector("#next-slide");
+const copyButton = document.querySelector("#copy-html");
+const downloadButton = document.querySelector("#download-html");
+const generateImageButton = document.querySelector("#generate-image");
+const coverPrompt = document.querySelector("#cover-prompt");
+
+const templates = {
+  cover: document.querySelector("#cover-slide-template"),
+  content: document.querySelector("#content-slide-template"),
+  cta: document.querySelector("#cta-slide-template")
+};
+
+const brandPresets = {
+  default: {
+    name: "Growth Loop",
+    tagline: "Instagram growth system for SMBs",
+    primaryColor: "#111827",
+    accentColor: "#ff6b35",
+    paperColor: "#fff8ed",
+    inkColor: "#111827"
+  },
+  terminal: {
+    name: "Terminal",
+    tagline: "Neon green mono growth signals",
+    primaryColor: "#030604",
+    accentColor: "#39ff88",
+    paperColor: "#061109",
+    inkColor: "#d7ffe7"
+  },
+  bullion: {
+    name: "Bullion",
+    tagline: "Black and gold premium growth",
+    primaryColor: "#090706",
+    accentColor: "#d6af4b",
+    paperColor: "#15100a",
+    inkColor: "#fff2c2"
+  },
+  voltage: {
+    name: "Voltage",
+    tagline: "Electric blue momentum engine",
+    primaryColor: "#04112f",
+    accentColor: "#00a3ff",
+    paperColor: "#071b4a",
+    inkColor: "#eaf7ff"
+  }
+};
+
+let carousel = null;
+let activeIndex = 0;
+let coverImageUrl = "";
+
+function setStatus(message, tone = "neutral") {
+  statusLine.textContent = message;
+  statusLine.dataset.tone = tone;
+}
+
+function readControls() {
+  const styleId = document.querySelector("#brand-preset").value;
+
+  return {
+    url: document.querySelector("#x-url").value.trim(),
+    manualText: document.querySelector("#manual-text").value.trim(),
+    brand: {
+      styleId,
+      name: document.querySelector("#brand-name").value.trim(),
+      tagline: document.querySelector("#brand-tagline").value.trim(),
+      inkColor: document.querySelector("#ink-color").value,
+      paperColor: document.querySelector("#paper-color").value,
+      primaryColor: document.querySelector("#primary-color").value,
+      accentColor: document.querySelector("#accent-color").value
+    },
+    cta: {
+      headline: document.querySelector("#cta-headline").value.trim(),
+      body: document.querySelector("#cta-body").value.trim(),
+      button: document.querySelector("#cta-button").value.trim()
+    }
+  };
+}
+
+async function postJson(url, payload) {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(data.error || "Request failed.");
+    error.code = data.code;
+    throw error;
+  }
+
+  return data;
+}
+
+function applyBrandVars(node, brand) {
+  node.classList.add(`theme-${brand.styleId || "default"}`);
+  node.style.setProperty("--brand", brand.primaryColor);
+  node.style.setProperty("--accent", brand.accentColor);
+  node.style.setProperty("--paper", brand.paperColor);
+  node.style.setProperty("--ink", brand.inkColor);
+}
+
+function applyBrandPreset(styleId) {
+  const preset = brandPresets[styleId] || brandPresets.default;
+  document.querySelector("#brand-name").value = preset.name;
+  document.querySelector("#brand-tagline").value = preset.tagline;
+  document.querySelector("#primary-color").value = preset.primaryColor;
+  document.querySelector("#accent-color").value = preset.accentColor;
+  document.querySelector("#paper-color").value = preset.paperColor;
+  document.querySelector("#ink-color").value = preset.inkColor;
+}
+
+function fillText(root, selector, value) {
+  const node = root.querySelector(selector);
+  if (node) node.textContent = value || "";
+}
+
+function renderSlide(slide, index, { thumbnail = false } = {}) {
+  const template = templates[slide.type];
+  const root = template.content.firstElementChild.cloneNode(true);
+  root.dataset.slideId = slide.id;
+  root.dataset.slideType = slide.type;
+  applyBrandVars(root, carousel.brand);
+
+  if (slide.type === "cover") {
+    fillText(root, ".slide-kicker", slide.kicker);
+    fillText(root, ".slide-headline", slide.headline);
+    fillText(root, ".slide-subhead", slide.subhead);
+    fillText(root, ".slide-footer", `${carousel.brand.tagline} / ${carousel.slideCount} slides`);
+    const image = root.querySelector(".cover-image");
+    if (coverImageUrl) {
+      image.src = coverImageUrl;
+      image.alt = `${slide.headline} cover image`;
+      image.classList.add("has-image");
+    }
+  }
+
+  if (slide.type === "content") {
+    fillText(root, ".slide-eyebrow", slide.eyebrow);
+    fillText(root, ".slide-number", `${index + 1}`.padStart(2, "0"));
+    fillText(root, ".content-title", slide.title);
+    fillText(root, ".content-body", slide.body);
+    fillText(root, ".slide-footer", carousel.brand.name);
+    const list = root.querySelector(".content-bullets");
+    for (const bullet of slide.bullets) {
+      const item = document.createElement("li");
+      item.textContent = bullet;
+      list.append(item);
+    }
+  }
+
+  if (slide.type === "cta") {
+    fillText(root, ".slide-eyebrow", slide.eyebrow);
+    fillText(root, ".cta-title", slide.headline);
+    fillText(root, ".cta-body", slide.body);
+    fillText(root, ".cta-button", slide.button);
+    fillText(root, ".slide-footer", carousel.brand.name);
+  }
+
+  if (thumbnail) root.setAttribute("aria-hidden", "true");
+  return root;
+}
+
+function render() {
+  if (!carousel) return;
+
+  document.documentElement.style.setProperty("--ink", carousel.brand.inkColor);
+  document.documentElement.style.setProperty("--paper", carousel.brand.paperColor);
+  document.documentElement.style.setProperty("--brand", carousel.brand.primaryColor);
+  document.documentElement.style.setProperty("--accent", carousel.brand.accentColor);
+
+  activeIndex = Math.max(0, Math.min(activeIndex, carousel.slides.length - 1));
+  const activeSlide = carousel.slides[activeIndex];
+
+  stage.replaceChildren(renderSlide(activeSlide, activeIndex));
+  thumbnailRail.replaceChildren();
+
+  carousel.slides.forEach((slide, index) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `thumb${index === activeIndex ? " is-active" : ""}`;
+    button.setAttribute("aria-label", `Show slide ${index + 1}`);
+    button.append(renderSlide(slide, index, { thumbnail: true }));
+    button.addEventListener("click", () => {
+      activeIndex = index;
+      render();
+    });
+    thumbnailRail.append(button);
+  });
+
+  deckTitle.textContent = carousel.slides[0]?.headline || "Generated carousel";
+  slideCount.textContent = `${activeIndex + 1} / ${carousel.slides.length}`;
+  coverPrompt.textContent = carousel.slides[0]?.imagePrompt || "No prompt yet.";
+
+  prevButton.disabled = activeIndex === 0;
+  nextButton.disabled = activeIndex === carousel.slides.length - 1;
+  copyButton.disabled = false;
+  downloadButton.disabled = false;
+  generateImageButton.disabled = false;
+}
+
+async function generateCoverImage() {
+  if (!carousel?.slides?.[0]?.imagePrompt) return;
+
+  setStatus("Generating cover image...");
+  generateImageButton.disabled = true;
+
+  try {
+    const result = await postJson("/api/cover-image", {
+      prompt: carousel.slides[0].imagePrompt,
+      size: "1024x1024",
+      quality: "medium"
+    });
+    coverImageUrl = result.imageUrl;
+    setStatus(`Cover image generated with ${result.model}.`, "success");
+    render();
+  } catch (error) {
+    const message = error.code === "openai_key_missing"
+      ? "Carousel created. Set OPENAI_API_KEY to generate the cover image."
+      : error.message;
+    setStatus(message, "warning");
+  } finally {
+    generateImageButton.disabled = false;
+  }
+}
+
+function exportHtml() {
+  if (!carousel) return "";
+
+  const slideMarkup = carousel.slides
+    .map((slide, index) => renderSlide(slide, index).outerHTML)
+    .join("\n");
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${escapeHtml(carousel.slides[0].headline)} - Instagram Carousel</title>
+<style>
+${document.querySelector("link[rel='stylesheet']").dataset.inlineCss || ""}
+.export-sheet { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; padding: 24px; background: #e9ece5; }
+.export-sheet .slide { width: 100%; box-shadow: none; }
+</style>
+</head>
+<body>
+<main class="export-sheet">
+${slideMarkup}
+</main>
+</body>
+</html>`;
+}
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+async function inlineCssForExport() {
+  if (document.querySelector("link[rel='stylesheet']").dataset.inlineCss) return;
+  const response = await fetch("/styles.css");
+  document.querySelector("link[rel='stylesheet']").dataset.inlineCss = await response.text();
+}
+
+form.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const payload = readControls();
+
+  if (!payload.url && !payload.manualText) {
+    setStatus("Add an X link or paste source text.", "warning");
+    return;
+  }
+
+  setStatus("Fetching and converting content...");
+  coverImageUrl = "";
+
+  try {
+    carousel = await postJson("/api/carousel", payload);
+    activeIndex = 0;
+    await inlineCssForExport();
+    render();
+    setStatus(carousel.fetchWarning || `Created ${carousel.slideCount} slides.`, carousel.fetchWarning ? "warning" : "success");
+
+    if (document.querySelector("#auto-image").checked) {
+      await generateCoverImage();
+    }
+  } catch (error) {
+    setStatus(error.message, "warning");
+  }
+});
+
+prevButton.addEventListener("click", () => {
+  activeIndex -= 1;
+  render();
+});
+
+nextButton.addEventListener("click", () => {
+  activeIndex += 1;
+  render();
+});
+
+copyButton.addEventListener("click", async () => {
+  await inlineCssForExport();
+  await navigator.clipboard.writeText(exportHtml());
+  setStatus("HTML copied to clipboard.", "success");
+});
+
+downloadButton.addEventListener("click", async () => {
+  await inlineCssForExport();
+  const blob = new Blob([exportHtml()], { type: "text/html" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "instagram-carousel.html";
+  link.click();
+  URL.revokeObjectURL(link.href);
+  setStatus("HTML downloaded.", "success");
+});
+
+generateImageButton.addEventListener("click", generateCoverImage);
+
+document.querySelector("#brand-preset").addEventListener("change", (event) => {
+  applyBrandPreset(event.target.value);
+});
