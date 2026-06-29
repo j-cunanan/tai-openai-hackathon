@@ -370,6 +370,103 @@ function normalizeHandle(value) {
   return clean.startsWith("@") ? clean : `@${clean}`;
 }
 
+function normalizeMediaUrl(value) {
+  const clean = String(value || "").trim();
+  if (!clean) return "";
+
+  try {
+    const parsed = new URL(clean);
+    return ["http:", "https:"].includes(parsed.protocol) ? parsed.href : "";
+  } catch {
+    return "";
+  }
+}
+
+function normalizeMediaItem(item, context = {}) {
+  const raw = typeof item === "string" ? { url: item } : item || {};
+  const url = normalizeMediaUrl(
+    raw.url ||
+    raw.mediaUrl ||
+    raw.media_url ||
+    raw.media_url_https ||
+    raw.imageUrl ||
+    raw.image_url ||
+    raw.src ||
+    raw.poster ||
+    raw.posterUrl ||
+    raw.poster_url ||
+    raw.preview_image_url ||
+    raw.thumbnailUrl ||
+    raw.thumbnail_url ||
+    raw.thumbnail
+  );
+
+  if (!url) return null;
+
+  const rawType = String(raw.type || raw.mediaType || raw.media_type || context.type || "image").toLowerCase();
+  return {
+    type: rawType.includes("video") || rawType.includes("animated") ? "video" : "image",
+    url,
+    alt: clip(raw.alt || raw.altText || raw.description || raw.title || context.alt || "", 140),
+    sourceUrl: normalizeMediaUrl(raw.sourceUrl || raw.source_url || raw.expandedUrl || raw.expanded_url || context.sourceUrl || ""),
+    postIndex: Number.isFinite(context.postIndex) ? context.postIndex : undefined
+  };
+}
+
+function uniqueMedia(items) {
+  const seen = new Set();
+  return items.filter((item) => {
+    if (!item?.url || seen.has(item.url)) return false;
+    seen.add(item.url);
+    return true;
+  });
+}
+
+function collectMedia(value, context = {}) {
+  const items = [];
+
+  function add(candidate, inheritedContext = context) {
+    if (!candidate) return;
+    if (Array.isArray(candidate)) {
+      for (const item of candidate) add(item, inheritedContext);
+      return;
+    }
+
+    const item = normalizeMediaItem(candidate, inheritedContext);
+    if (item) items.push(item);
+
+    if (typeof candidate === "object") {
+      for (const key of ["media", "mediaItems", "images", "photos", "assets"]) {
+        if (Array.isArray(candidate[key])) add(candidate[key], inheritedContext);
+      }
+      if (candidate.video) add(candidate.video, { ...inheritedContext, type: "video" });
+    }
+  }
+
+  add(value);
+  return uniqueMedia(items);
+}
+
+function extractMediaFromObject(source = {}, context = {}) {
+  const directMedia = collectMedia([
+    source.media,
+    source.mediaItems,
+    source.images,
+    source.photos,
+    source.assets,
+    source.mediaUrl || source.media_url || source.imageUrl || source.image_url
+      ? {
+          url: source.mediaUrl || source.media_url || source.imageUrl || source.image_url,
+          alt: source.alt || source.altText || context.alt,
+          sourceUrl: source.url || context.sourceUrl
+        }
+      : null,
+    source.video
+  ], context);
+
+  return uniqueMedia(directMedia);
+}
+
 function normalizeXaiTweetPayload(payload, url, id) {
   const posts = Array.isArray(payload.posts) ? payload.posts : [];
   const joinedPostText = posts
@@ -386,6 +483,27 @@ function normalizeXaiTweetPayload(payload, url, id) {
   }
 
   const firstPost = posts[0] || {};
+  const normalizedPosts = posts.map((post, index) => {
+    const postText = normalizeText(post.text || post.content || post.full_text || "");
+    return {
+      id: String(post.id || ""),
+      url: post.url || "",
+      text: postText,
+      author: post.author || post.authorName || "",
+      handle: normalizeHandle(post.handle || ""),
+      media: extractMediaFromObject(post, {
+        alt: postText || text,
+        sourceUrl: post.url || url,
+        postIndex: index + 1
+      })
+    };
+  }).filter((post) => post.text || post.media.length);
+
+  const media = uniqueMedia([
+    ...extractMediaFromObject(payload, { alt: text, sourceUrl: payload.url || url }),
+    ...normalizedPosts.flatMap((post) => post.media)
+  ]);
+
   return {
     id: String(payload.id || firstPost.id || id || ""),
     url: payload.url || firstPost.url || url,
@@ -393,17 +511,12 @@ function normalizeXaiTweetPayload(payload, url, id) {
     author: payload.author || firstPost.author || firstPost.authorName || "",
     handle: normalizeHandle(payload.handle || firstPost.handle || extractHandle(url)),
     avatar: payload.avatar || firstPost.avatar || "",
-    mediaUrl: payload.mediaUrl || payload.media_url || firstPost.mediaUrl || firstPost.media_url || "",
+    media,
+    mediaUrl: media[0]?.url || payload.mediaUrl || payload.media_url || firstPost.mediaUrl || firstPost.media_url || "",
     publishedAt: payload.publishedAt || payload.created_at || firstPost.publishedAt || firstPost.created_at || "",
     isThreadLikely: Boolean(payload.isThreadLikely || payload.is_thread || posts.length > 1 || looksLikeThread(text)),
     source: "xai-x-search",
-    posts: posts.map((post, index) => ({
-      id: String(post.id || ""),
-      url: post.url || "",
-      text: normalizeText(post.text || post.content || post.full_text || ""),
-      author: post.author || post.authorName || "",
-      handle: normalizeHandle(post.handle || "")
-    })).filter((post) => post.text)
+    posts: normalizedPosts
   };
 }
 
@@ -439,7 +552,8 @@ async function fetchTweetWithXai(url) {
   const extractionInstructions = [
     "Fetch the exact public X/Twitter post or thread from the URL below.",
     "Return only JSON with this shape:",
-    "{\"id\":\"\",\"url\":\"\",\"author\":\"\",\"handle\":\"@handle\",\"publishedAt\":\"\",\"text\":\"full text with thread posts separated by blank lines\",\"isThreadLikely\":true,\"posts\":[{\"id\":\"\",\"url\":\"\",\"author\":\"\",\"handle\":\"@handle\",\"text\":\"\"}]}",
+    "{\"id\":\"\",\"url\":\"\",\"author\":\"\",\"handle\":\"@handle\",\"publishedAt\":\"\",\"text\":\"full text with thread posts separated by blank lines\",\"isThreadLikely\":true,\"media\":[{\"type\":\"image\",\"url\":\"https://...\",\"alt\":\"\"}],\"posts\":[{\"id\":\"\",\"url\":\"\",\"author\":\"\",\"handle\":\"@handle\",\"text\":\"\",\"media\":[{\"type\":\"image\",\"url\":\"https://...\",\"alt\":\"\"}]}]}",
+    "Include direct image URLs and video poster/preview image URLs from the post or thread when they are available.",
     "Do not summarize, rewrite, add commentary, or include markdown."
   ].join(" ");
 
@@ -517,9 +631,10 @@ async function fetchTweet(url) {
   }
 
   let xaiError = null;
+  let xaiTweet = null;
   if (process.env.XAI_API_KEY) {
     try {
-      return await fetchTweetWithXai(url);
+      xaiTweet = await fetchTweetWithXai(url);
     } catch (error) {
       xaiError = error;
     }
@@ -542,6 +657,7 @@ async function fetchTweet(url) {
   let handle = "";
   let avatar = "";
   let mediaUrl = "";
+  let media = [];
   let publishedAt = "";
 
   if (syndication.status === "fulfilled") {
@@ -550,7 +666,8 @@ async function fetchTweet(url) {
     author = data.user?.name || "";
     handle = data.user?.screen_name ? `@${data.user.screen_name}` : "";
     avatar = data.user?.profile_image_url_https || data.user?.profile_image_url || "";
-    mediaUrl = data.photos?.[0]?.url || data.video?.poster || "";
+    media = extractMediaFromObject(data, { alt: text, sourceUrl: url });
+    mediaUrl = media[0]?.url || "";
     publishedAt = data.created_at || "";
   }
 
@@ -564,10 +681,34 @@ async function fetchTweet(url) {
     }
   }
 
+  if (xaiTweet) {
+    const publicMedia = uniqueMedia([
+      ...collectMedia(media, { alt: xaiTweet.text, sourceUrl: url }),
+      ...collectMedia(mediaUrl, { alt: xaiTweet.text, sourceUrl: url })
+    ]);
+    const mergedMedia = uniqueMedia([
+      ...collectMedia(xaiTweet.media, { alt: xaiTweet.text, sourceUrl: xaiTweet.url || url }),
+      ...publicMedia
+    ]);
+
+    return {
+      ...xaiTweet,
+      author: xaiTweet.author || author,
+      handle: xaiTweet.handle || handle,
+      avatar: xaiTweet.avatar || avatar,
+      media: mergedMedia,
+      mediaUrl: mergedMedia[0]?.url || xaiTweet.mediaUrl || mediaUrl,
+      publishedAt: xaiTweet.publishedAt || publishedAt,
+      source: publicMedia.length && !(xaiTweet.media || []).length
+        ? "xai-x-search+twitter-syndication-media"
+        : xaiTweet.source
+    };
+  }
+
   if (!text) {
     const error = new Error(xaiError
       ? `xAI and public X fetch both failed. xAI: ${xaiError.message}`
-      : "The public X embed endpoints did not return readable post text. Paste the text manually or use an X API-backed fetcher.");
+      : "The public X embed endpoints did not return readable post text. Try a valid public X post URL or use an X API-backed fetcher.");
     error.statusCode = 502;
     error.details = errors.filter(Boolean);
     throw error;
@@ -580,6 +721,7 @@ async function fetchTweet(url) {
     author,
     handle,
     avatar,
+    media,
     mediaUrl,
     publishedAt,
     isThreadLikely: looksLikeThread(text),
@@ -662,6 +804,39 @@ function deriveHeadline(text) {
   return clip(titleCase(candidate), 72);
 }
 
+function deriveViralHook(text) {
+  const clean = normalizeText(text);
+  const firstLine = clean.split(/\n|[.!?]/).find((line) => line.trim().length > 8) || clean;
+  let topic = firstLine
+    .replace(/^(\d+[.)/]\s*)/, "")
+    .replace(/https?:\/\/\S+/gi, "")
+    .replace(/@\w+/g, "")
+    .replace(/#\w+/g, "")
+    .trim();
+
+  topic = topic
+    .replace(/^introducing\s+(?:a\s+|an\s+|the\s+)?(?:limited preview of\s+)?/i, "")
+    .replace(/^we(?:'|’)re\s+(?:launching|previewing|introducing)\s+/i, "")
+    .replace(/^new\s+/i, "")
+    .trim();
+
+  const lead = topic.split(/[,;:]/)[0].trim();
+  if (lead.length >= 8) topic = lead;
+
+  const hookTopic = clip(titleCase(topic || deriveHeadline(text)), 42);
+  const lower = clean.toLowerCase();
+  if (/\b(launch|introduc|preview|release|announce|new)\b/.test(lower)) {
+    return clip(`${hookTopic}: What Changes Now`, 58);
+  }
+  if (/\b(cost|price|pricing|cheaper|lower cost)\b/.test(lower)) {
+    return clip(`${hookTopic}: The Cost Shift`, 58);
+  }
+  if (/\b(security|cyber|safety|risk)\b/.test(lower)) {
+    return clip(`${hookTopic}: The Risk Shift`, 58);
+  }
+  return clip(`${hookTopic}: Why It Matters Now`, 58);
+}
+
 function deriveSlideTitle(text, index) {
   const clean = normalizeText(text)
     .replace(/^(\d+[.)/]\s*)/, "")
@@ -704,6 +879,7 @@ function makeCoverPrompt({ headline, tweet, brand, template }) {
     palette ? `Use this color direction: ${palette}.` : "",
     "Composition requirement: the HTML template is a 4:5 portrait frame and emphasizes the art in the upper 66% of the cover slide, so put the main subject, action, contrast, and visual hook in the top two-thirds of the portrait frame.",
     "Visual style: AI-generated editorial poster art, cinematic social-cover composition, one dominant central subject or metaphor, dramatic scale contrast, sharp foreground/background separation, premium lighting, high contrast, and polished magazine-cover energy.",
+    "The cover should feel like an original viral hook page, not a screenshot, chart crop, or reused thread image.",
     "Supporting details may form a dense but controlled collage in the upper half only; keep them large, symbolic, and instantly legible at phone size.",
     "Keep the lower 34% dark and low-detail with a smooth fade-ready transition: simple shadow, soft gradient, atmospheric haze, or negative space only. Avoid faces, hands, objects, hard edges, high-detail texture, or focal points in the lower third because large HTML typography will sit there.",
     "The generated image must not contain any headline text; the HTML template adds all typography in cyan and white.",
@@ -737,7 +913,7 @@ function buildCarousel({ tweet, manualText, url, brand = {}, cta = {}, template 
   const fallbackText = normalizeText(manualText);
   const sourceText = normalizeText(tweet?.text || fallbackText);
   if (!sourceText) {
-    const error = new Error("No post content was found. Add an X link or paste source text.");
+    const error = new Error("No post content was found. Add an X link.");
     error.statusCode = 400;
     throw error;
   }
@@ -751,9 +927,24 @@ function buildCarousel({ tweet, manualText, url, brand = {}, cta = {}, template 
     button: clip(cta.button || "DM GROWTH", 32)
   };
 
-  const headline = deriveHeadline(sourceText);
+  const headline = deriveViralHook(sourceText);
   const chunks = sentenceChunks(sourceText);
   const grouped = (isStructuredThreadText(sourceText) ? chunks : groupChunks(chunks)).slice(0, 8);
+  const sourceMedia = uniqueMedia([
+    ...collectMedia(tweet?.media, { alt: sourceText, sourceUrl: tweet?.url || url || "" }),
+    ...collectMedia(tweet?.mediaUrl, { alt: sourceText, sourceUrl: tweet?.url || url || "" }),
+    ...((tweet?.posts || []).flatMap((post, index) => collectMedia(post.media, {
+      alt: post.text || sourceText,
+      sourceUrl: post.url || tweet?.url || url || "",
+      postIndex: index + 1
+    })))
+  ]);
+
+  function contentSlideMedia(index) {
+    if (!sourceMedia.length) return null;
+    return sourceMedia[index] || null;
+  }
+
   const contentSlides = grouped.map((group, index) => ({
     id: `content-${index + 1}`,
     type: "content",
@@ -761,6 +952,7 @@ function buildCarousel({ tweet, manualText, url, brand = {}, cta = {}, template 
     title: deriveSlideTitle(group, index + 1),
     body: clip(group, 520),
     bullets: toBullets(group),
+    media: contentSlideMedia(index),
     sourceIndex: index + 1
   }));
 
@@ -771,6 +963,7 @@ function buildCarousel({ tweet, manualText, url, brand = {}, cta = {}, template 
       kicker: normalizedBrand.name,
       headline,
       subhead: tweet?.handle ? `Adapted from ${tweet.handle}` : "Adapted from an X post",
+      media: null,
       imagePrompt: makeCoverPrompt({ headline, tweet, brand: normalizedBrand, template: visualTemplate })
     },
     ...contentSlides,
@@ -791,7 +984,8 @@ function buildCarousel({ tweet, manualText, url, brand = {}, cta = {}, template 
       author: tweet?.author || "",
       handle: tweet?.handle || "",
       source: tweet?.source || (fallbackText ? "manual-text" : ""),
-      isThreadLikely: tweet?.isThreadLikely || looksLikeThread(sourceText)
+      isThreadLikely: tweet?.isThreadLikely || looksLikeThread(sourceText),
+      media: sourceMedia
     },
     brand: normalizedBrand,
     template: visualTemplate,

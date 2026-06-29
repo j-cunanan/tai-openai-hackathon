@@ -10,8 +10,6 @@ const copyButton = document.querySelector("#copy-html");
 const downloadButton = document.querySelector("#download-html");
 const generateImageButton = document.querySelector("#generate-image");
 const recreateImageButton = document.querySelector("#recreate-image");
-const coverPrompt = document.querySelector("#cover-prompt");
-const coverDirection = document.querySelector("#cover-direction");
 const coverStatus = document.querySelector("#cover-status");
 
 const templates = {
@@ -161,7 +159,7 @@ function readControls() {
 
   return {
     url: document.querySelector("#x-url").value.trim(),
-    manualText: document.querySelector("#manual-text").value.trim(),
+    manualText: "",
     template: {
       styleId: document.querySelector("#visual-template").value
     },
@@ -251,8 +249,13 @@ function resolveTemplate() {
   };
 }
 
-function getTemplateImageSource(template, { exportMode = false, cover = false } = {}) {
-  if (cover && coverImageUrl) return coverImageUrl;
+function getSlideMedia(slide) {
+  return slide?.media?.url ? slide.media : null;
+}
+
+function getTemplateImageSource(template, slide, { exportMode = false } = {}) {
+  if (slide.type === "cover" && coverImageUrl) return coverImageUrl;
+  if (getSlideMedia(slide)) return slide.media.url;
   if (exportMode && templateAssetDataUrls.has(template.imageUrl)) {
     return templateAssetDataUrls.get(template.imageUrl);
   }
@@ -278,7 +281,9 @@ function makeTemplateLabel(text) {
   return label;
 }
 
-function appendTemplateChrome(root, template, index) {
+function appendTemplateChrome(root, template, slide, index) {
+  if (slide.type !== "cover") return;
+
   const slideNumber = String(index + 1).padStart(2, "0");
   const total = String(carousel.slideCount).padStart(2, "0");
 
@@ -344,9 +349,15 @@ function appendTemplateChrome(root, template, index) {
 
 function applyVisualTemplate(root, slide, index, options = {}) {
   const template = resolveTemplate();
+  const slideMedia = getSlideMedia(slide);
   root.classList.add("viral-template", `visual-${template.styleId}`);
   root.dataset.visualTemplate = template.styleId;
+  root.dataset.chrome = template.chrome || "";
   root.style.setProperty("--template-accent", template.accentColor);
+  if (slideMedia) {
+    root.classList.add("has-source-media");
+    root.dataset.sourceMediaType = slideMedia.type || "image";
+  }
 
   if (template.language === "jp" || template.language === "bilingual") {
     root.classList.add("jp-copy");
@@ -356,19 +367,18 @@ function applyVisualTemplate(root, slide, index, options = {}) {
   media.className = "template-media";
   const image = document.createElement("img");
   image.className = "template-image";
-  image.src = getTemplateImageSource(template, {
-    exportMode: options.exportMode,
-    cover: slide.type === "cover"
+  image.src = getTemplateImageSource(template, slide, {
+    exportMode: options.exportMode
   });
-  image.alt = slide.type === "cover" && coverImageUrl
+  image.alt = slideMedia?.alt || (slide.type === "cover" && coverImageUrl
     ? `${slide.headline} generated cover image`
-    : template.imageAlt;
+    : template.imageAlt);
   media.append(image);
 
   const grain = document.createElement("div");
   grain.className = "template-grain";
   root.prepend(media, grain);
-  appendTemplateChrome(root, template, index);
+  appendTemplateChrome(root, template, slide, index);
 }
 
 async function inlineTemplateAssetForExport() {
@@ -461,7 +471,6 @@ function render() {
 
   deckTitle.textContent = carousel.slides[0]?.headline || "Generated carousel";
   slideCount.textContent = `${activeIndex + 1} / ${carousel.slides.length}`;
-  coverPrompt.value = carousel.slides[0]?.imagePrompt || "No prompt yet.";
 
   prevButton.disabled = activeIndex === 0;
   nextButton.disabled = activeIndex === carousel.slides.length - 1;
@@ -474,17 +483,12 @@ function render() {
 function buildCoverImagePrompt({ recreate = false } = {}) {
   if (!carousel?.slides?.[0]?.imagePrompt) return;
 
-  const direction = coverDirection.value.trim();
   const additions = [];
 
   if (recreate) {
     additions.push(
       "Create a fresh alternate editorial cover concept for the same carousel: keep the topic, brand palette, text-free art direction, and upper-two-thirds composition rule, but change the central metaphor, camera angle, and visual tension."
     );
-  }
-
-  if (direction) {
-    additions.push(`Additional creative direction from the user: ${direction}.`);
   }
 
   return [carousel.slides[0].imagePrompt, ...additions].join(" ");
@@ -571,8 +575,8 @@ form.addEventListener("submit", async (event) => {
   event.preventDefault();
   const payload = readControls();
 
-  if (!payload.url && !payload.manualText) {
-    setStatus("Add an X link or paste source text.", "warning");
+  if (!payload.url) {
+    setStatus("Add an X link.", "warning");
     return;
   }
 
@@ -587,10 +591,13 @@ form.addEventListener("submit", async (event) => {
     render();
     setStatus(carousel.fetchWarning || `Created ${carousel.slideCount} slides.`, carousel.fetchWarning ? "warning" : "success");
 
+    const sourceMediaCount = carousel.source?.media?.length || 0;
     if (document.querySelector("#auto-image").checked) {
       await generateCoverImage();
     } else {
-      setCoverStatus("Cover prompt ready. Add direction or create a cover image.", "success");
+      setCoverStatus(sourceMediaCount
+        ? `Using ${sourceMediaCount} image${sourceMediaCount === 1 ? "" : "s"} from the X post/thread starting on slide 2.`
+        : "Carousel created. Create a cover image when ready.", "success");
     }
   } catch (error) {
     setStatus(error.message, "warning");

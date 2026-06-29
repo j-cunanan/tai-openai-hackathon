@@ -6,6 +6,7 @@ Instagram carousel generator for SMB marketing. The app turns an X/Twitter post 
 - Multiple content slides split from the source post or thread text
 - A final CTA slide
 - 4:5 visual templates adapted from the Instagram Viral Marketing gallery
+- Image assets from X posts or threads used directly in content slides when available
 - Optional `gpt-image-2` cover-image generation through the OpenAI Images API
 - X post/thread fetching through xAI when `XAI_API_KEY` is present
 - Branding presets for Growth Loop, Terminal, Bullion, and Voltage

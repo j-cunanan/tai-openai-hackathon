@@ -24,11 +24,6 @@
           </label>
 
           <label>
-            <span>Fallback source text</span>
-            <textarea id="manual-text" name="manualText" rows="5" placeholder="Paste the post or thread when X blocks public fetch."></textarea>
-          </label>
-
-          <label>
             <span>Visual template</span>
             <select id="visual-template" name="visualTemplate">
               <option value="black-gold">Black Gold Authority</option>
@@ -144,16 +139,7 @@
                 <button id="generate-image" type="button" disabled>Create cover</button>
                 <button id="recreate-image" type="button" disabled>Recreate cover</button>
               </div>
-              <label>
-                <span>Creative direction</span>
-                <textarea id="cover-direction" rows="4" placeholder="Optional: sharper metaphor, more premium, more surreal, darker lighting..."></textarea>
-              </label>
               <p id="cover-status" class="cover-status">No cover generated.</p>
-            </section>
-
-            <section class="cover-panel prompt-panel">
-              <h3>Cover prompt</h3>
-              <textarea id="cover-prompt" rows="12" readonly>No prompt yet.</textarea>
             </section>
           </aside>
         </div>

@@ -48,10 +48,12 @@ assert.equal(carousel.slides[1].type, "content");
 assert.equal(carousel.slides[3].type, "content");
 assert.equal(carousel.slides[4].type, "cta");
 assert.match(carousel.slides[0].headline, /SMBs/);
+assert.notEqual(carousel.slides[0].headline, carousel.slides[1].title);
 assert.match(carousel.slides[0].imagePrompt, /upper 66%/);
 assert.match(carousel.slides[0].imagePrompt, /1080x1350/);
 assert.match(carousel.slides[0].imagePrompt, /4:5 portrait/);
 assert.match(carousel.slides[0].imagePrompt, /editorial poster/);
+assert.match(carousel.slides[0].imagePrompt, /original viral hook page/);
 assert.match(carousel.slides[0].imagePrompt, /must not contain any headline text/);
 assert.doesNotMatch(carousel.slides[0].imagePrompt, /\bsquare\b/i);
 
@@ -61,5 +63,36 @@ const apostropheCarousel = buildCarousel({
   cta: {}
 });
 assert.doesNotMatch(apostropheCarousel.slides[0].headline, /Don'T/);
+
+const mediaCarousel = buildCarousel({
+  tweet: {
+    id: "1234567890123456789",
+    url: "https://x.com/example/status/1234567890123456789",
+    text: sampleThread,
+    handle: "@example",
+    isThreadLikely: true,
+    media: [
+      {
+        type: "image",
+        url: "https://pbs.twimg.com/media/source-one.jpg",
+        alt: "Source image one"
+      },
+      {
+        type: "image",
+        url: "https://pbs.twimg.com/media/source-two.jpg",
+        alt: "Source image two"
+      }
+    ]
+  },
+  brand: {},
+  cta: {},
+  template: {
+    styleId: "black-gold"
+  }
+});
+assert.equal(mediaCarousel.source.media.length, 2);
+assert.equal(mediaCarousel.slides[0].media, null);
+assert.equal(mediaCarousel.slides[1].media.url, "https://pbs.twimg.com/media/source-one.jpg");
+assert.equal(mediaCarousel.slides[2].media.url, "https://pbs.twimg.com/media/source-two.jpg");
 
 console.log("Smoke tests passed.");

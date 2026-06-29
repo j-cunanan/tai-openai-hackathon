@@ -356,18 +356,6 @@ textarea:focus {
   gap: 10px;
 }
 
-.cover-panel textarea {
-  min-height: 94px;
-}
-
-.prompt-panel textarea {
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.5;
-  overflow-wrap: anywhere;
-  min-height: 230px;
-}
-
 .cover-status {
   color: var(--muted);
   font-size: 13px;
@@ -919,6 +907,17 @@ textarea:focus {
   background: #101010;
 }
 
+.template-media::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.18) 0%, rgba(0, 0, 0, 0.36) 44%, rgba(0, 0, 0, 0.88) 74%, rgba(0, 0, 0, 0.96) 100%),
+    radial-gradient(circle at 50% 76%, rgba(0, 0, 0, 0.5), transparent 36%);
+}
+
 .template-media img {
   width: 100%;
   object-fit: cover;
@@ -1008,6 +1007,8 @@ textarea:focus {
   min-height: clamp(26px, 5.4cqw, 40px);
   border: 1px solid currentColor;
   border-radius: 999px;
+  background: rgba(2, 6, 12, 0.58);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.26);
   padding: 0 clamp(9px, 2.4cqw, 16px);
   color: var(--template-accent);
   font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -1029,7 +1030,7 @@ textarea:focus {
   color: #ffffff;
   font-family: var(--template-font);
   font-weight: 900;
-  line-height: 0.95;
+  line-height: 1;
   letter-spacing: 0;
   text-shadow: var(--template-shadow);
   text-wrap: balance;
@@ -1082,13 +1083,16 @@ textarea:focus {
 
 .slide.viral-template .content-bullets li {
   border-left: clamp(4px, 1.2cqw, 8px) solid var(--template-accent);
-  padding-left: clamp(10px, 2.8cqw, 20px);
+  border-radius: 8px;
+  background: rgba(2, 6, 12, 0.5);
+  padding: clamp(8px, 1.8cqw, 13px) clamp(10px, 2.8cqw, 20px);
   color: #ffffff;
   font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: clamp(15px, 3.5cqw, 25px);
   font-weight: 850;
-  line-height: 1.2;
+  line-height: 1.24;
   text-shadow: 0 7px 18px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
 }
 
 .slide.viral-template .slide-footer {
@@ -1360,6 +1364,73 @@ textarea:focus {
 .visual-soft-jp .slide-subhead,
 .visual-soft-jp .content-body {
   color: var(--template-accent);
+}
+
+.slide.viral-template.has-source-media {
+  --template-fade: linear-gradient(180deg, rgba(0, 0, 0, 0.04) 0%, rgba(0, 0, 0, 0.08) 47%, rgba(0, 0, 0, 0.82) 62%, #020202 100%);
+  --template-halo-opacity: 0.22;
+  --template-shadow: 0 3px 0 #000000, 0 12px 28px rgba(0, 0, 0, 0.88), 0 0 2px rgba(0, 0, 0, 0.96);
+  --template-heading: clamp(34px, 9.8cqw, 74px);
+  --template-title: clamp(30px, 8.2cqw, 62px);
+}
+
+.slide.viral-template.has-source-media .template-media {
+  inset: 10cqw 7% auto 7%;
+  height: 56cqw;
+  z-index: 1;
+  overflow: hidden;
+  border: 2px solid rgba(255, 255, 255, 0.86);
+  border-radius: 8px;
+  background: #f5f7fa;
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.34);
+}
+
+.slide.viral-template.has-source-media .template-media img {
+  object-fit: contain;
+  object-position: center;
+  filter: brightness(1.03) saturate(1.02) contrast(1.02);
+}
+
+.slide.viral-template.has-source-media .template-media::after {
+  opacity: 0;
+}
+
+.slide.viral-template.has-source-media .slide-headline,
+.slide.viral-template.has-source-media .content-title,
+.slide.viral-template.has-source-media .cta-title {
+  max-width: 12.8ch;
+}
+
+.slide.viral-template.has-source-media .slide-subhead,
+.slide.viral-template.has-source-media .cta-body {
+  max-width: 30ch;
+  border-radius: 8px;
+  background: rgba(2, 6, 12, 0.54);
+  padding: clamp(7px, 1.8cqw, 12px) clamp(10px, 2.4cqw, 16px);
+}
+
+.slide.viral-template.slide-content-card.has-source-media {
+  gap: clamp(8px, 2.1cqw, 16px);
+  padding-top: 70%;
+  --template-title: clamp(25px, 7cqw, 54px);
+}
+
+.slide.viral-template.slide-content-card.has-source-media .template-media {
+  height: 56cqw;
+}
+
+.slide.viral-template.slide-content-card.has-source-media .content-bullets {
+  gap: clamp(6px, 1.55cqw, 11px);
+}
+
+.slide.viral-template.slide-content-card.has-source-media .content-bullets li {
+  font-size: clamp(13px, 2.8cqw, 21px);
+  line-height: 1.18;
+}
+
+.slide.viral-template.slide-cover.has-source-media .slide-content {
+  inset: auto 7% 6.6% 7%;
+  gap: clamp(7px, 1.8cqw, 14px);
 }
 
 @media (max-width: 1080px) {
