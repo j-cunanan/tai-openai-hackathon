@@ -35,6 +35,14 @@ const IMAGE_MODEL = process.env.OPENAI_IMAGE_MODEL || "gpt-image-2";
 const XAI_MODEL = process.env.XAI_MODEL || "grok-4.3";
 const XAI_API_BASE = (process.env.XAI_API_BASE || "https://api.x.ai/v1").replace(/\/$/, "");
 
+function logServer(event, details = {}) {
+  const fields = Object.entries(details)
+    .filter(([, value]) => value !== undefined && value !== null && value !== "")
+    .map(([key, value]) => `${key}=${JSON.stringify(value)}`)
+    .join(" ");
+  console.log(`[carousel] ${event}${fields ? ` ${fields}` : ""}`);
+}
+
 const BRAND_PRESETS = {
   default: {
     styleId: "default",
@@ -864,8 +872,15 @@ async function imageUrlToDataUrl(imageUrl) {
 }
 
 async function handleCoverImage(req, res) {
+  const requestId = `img_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+  const startedAt = Date.now();
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
+    logServer("cover-image skipped", {
+      requestId,
+      reason: "OPENAI_API_KEY missing",
+      model: IMAGE_MODEL
+    });
     sendJson(res, 400, {
       error: "OPENAI_API_KEY is not set. Start the server with an OpenAI API key to generate cover images.",
       code: "openai_key_missing"
@@ -876,9 +891,24 @@ async function handleCoverImage(req, res) {
   const body = await readJson(req);
   const prompt = normalizeText(body.prompt);
   if (!prompt) {
+    logServer("cover-image rejected", {
+      requestId,
+      reason: "missing prompt"
+    });
     sendJson(res, 400, { error: "Missing image prompt." });
     return;
   }
+
+  const size = body.size || "1024x1024";
+  const quality = body.quality || "medium";
+  logServer("cover-image openai request", {
+    requestId,
+    model: IMAGE_MODEL,
+    size,
+    quality,
+    promptChars: prompt.length,
+    promptPreview: clip(prompt, 180)
+  });
 
   const response = await fetch("https://api.openai.com/v1/images/generations", {
     method: "POST",
@@ -889,14 +919,21 @@ async function handleCoverImage(req, res) {
     body: JSON.stringify({
       model: IMAGE_MODEL,
       prompt,
-      size: body.size || "1024x1024",
-      quality: body.quality || "medium",
+      size,
+      quality,
       n: 1
     })
   });
 
   const result = await response.json().catch(() => ({}));
   if (!response.ok) {
+    logServer("cover-image openai error", {
+      requestId,
+      status: response.status,
+      code: result.error?.code || "openai_image_error",
+      message: result.error?.message || "OpenAI image generation failed.",
+      durationMs: Date.now() - startedAt
+    });
     sendJson(res, response.status, {
       error: result.error?.message || "OpenAI image generation failed.",
       code: result.error?.code || "openai_image_error"
@@ -905,11 +942,26 @@ async function handleCoverImage(req, res) {
   }
 
   const item = result.data?.[0] || {};
+  const responseFormat = item.b64_json ? "b64_json" : item.url ? "url" : "missing";
   const imageUrl = item.b64_json ? `data:image/png;base64,${item.b64_json}` : await imageUrlToDataUrl(item.url);
   if (!imageUrl) {
+    logServer("cover-image missing image", {
+      requestId,
+      responseFormat,
+      durationMs: Date.now() - startedAt
+    });
     sendJson(res, 502, { error: "OpenAI response did not include an image." });
     return;
   }
+
+  logServer("cover-image success", {
+    requestId,
+    model: IMAGE_MODEL,
+    responseFormat,
+    returnedDataUrl: imageUrl.startsWith("data:"),
+    revisedPrompt: Boolean(item.revised_prompt),
+    durationMs: Date.now() - startedAt
+  });
 
   sendJson(res, 200, {
     imageUrl,
@@ -984,7 +1036,12 @@ const server = http.createServer(route);
 
 if (require.main === module) {
   server.listen(PORT, HOST, () => {
-    console.log(`Instagram carousel generator running at http://${HOST}:${PORT}`);
+    logServer("server started", {
+      url: `http://${HOST}:${PORT}`,
+      imageModel: IMAGE_MODEL,
+      openaiKey: process.env.OPENAI_API_KEY ? "present" : "missing",
+      xaiKey: process.env.XAI_API_KEY ? "present" : "missing"
+    });
   });
 }
 
