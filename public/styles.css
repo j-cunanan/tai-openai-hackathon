@@ -746,6 +746,13 @@ textarea:focus {
   filter: var(--template-image-filter);
 }
 
+.slide.viral-template.slide-cover {
+  --template-contrast-overlay:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.02) 0%, rgba(0, 0, 0, 0.08) 36%, rgba(0, 0, 0, 0.64) 78%, rgba(0, 0, 0, 0.78) 100%),
+    radial-gradient(circle at 28% 54%, rgba(0, 0, 0, 0.28), transparent 42%);
+  --template-image-filter: brightness(0.86) contrast(1.06) saturate(1.02);
+}
+
 .template-grain {
   position: absolute;
   inset: 0;
@@ -790,6 +797,13 @@ textarea:focus {
   background: var(--template-readability-bg);
   box-shadow: 0 18px 42px rgba(0, 0, 0, 0.48);
   padding: clamp(14px, 3.5cqw, 28px);
+}
+
+.slide.viral-template.slide-cover .slide-content {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
 }
 
 .slide.viral-template.slide-content-card {
@@ -879,6 +893,11 @@ textarea:focus {
   background: linear-gradient(90deg, rgba(0, 0, 0, 0.62), rgba(0, 0, 0, 0.2) 76%, transparent);
   padding: clamp(4px, 1.2cqw, 10px) clamp(6px, 1.8cqw, 14px);
   font-size: var(--template-heading);
+}
+
+.slide.viral-template.slide-cover .slide-headline {
+  background: transparent;
+  padding: 0;
 }
 
 .slide.viral-template .content-title {
