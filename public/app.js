@@ -9,7 +9,10 @@ const nextButton = document.querySelector("#next-slide");
 const copyButton = document.querySelector("#copy-html");
 const downloadButton = document.querySelector("#download-html");
 const generateImageButton = document.querySelector("#generate-image");
+const recreateImageButton = document.querySelector("#recreate-image");
 const coverPrompt = document.querySelector("#cover-prompt");
+const coverDirection = document.querySelector("#cover-direction");
+const coverStatus = document.querySelector("#cover-status");
 
 const templates = {
   cover: document.querySelector("#cover-slide-template"),
@@ -59,6 +62,11 @@ let coverImageUrl = "";
 function setStatus(message, tone = "neutral") {
   statusLine.textContent = message;
   statusLine.dataset.tone = tone;
+}
+
+function setCoverStatus(message, tone = "neutral") {
+  coverStatus.textContent = message;
+  coverStatus.dataset.tone = tone;
 }
 
 function readControls() {
@@ -199,37 +207,68 @@ function render() {
 
   deckTitle.textContent = carousel.slides[0]?.headline || "Generated carousel";
   slideCount.textContent = `${activeIndex + 1} / ${carousel.slides.length}`;
-  coverPrompt.textContent = carousel.slides[0]?.imagePrompt || "No prompt yet.";
+  coverPrompt.value = carousel.slides[0]?.imagePrompt || "No prompt yet.";
 
   prevButton.disabled = activeIndex === 0;
   nextButton.disabled = activeIndex === carousel.slides.length - 1;
   copyButton.disabled = false;
   downloadButton.disabled = false;
   generateImageButton.disabled = false;
+  recreateImageButton.disabled = false;
 }
 
-async function generateCoverImage() {
+function buildCoverImagePrompt({ recreate = false } = {}) {
   if (!carousel?.slides?.[0]?.imagePrompt) return;
 
-  setStatus("Generating cover image...");
+  const direction = coverDirection.value.trim();
+  const additions = [];
+
+  if (recreate) {
+    additions.push(
+      "Create a fresh alternate cover concept for the same carousel: keep the topic, brand palette, and upper-66-percent composition rule, but change the central metaphor, camera angle, and visual tension."
+    );
+  }
+
+  if (direction) {
+    additions.push(`Additional creative direction from the user: ${direction}.`);
+  }
+
+  return [carousel.slides[0].imagePrompt, ...additions].join(" ");
+}
+
+async function generateCoverImage(options = {}) {
+  const prompt = buildCoverImagePrompt(options);
+  if (!prompt) return;
+
+  const isRecreate = Boolean(options.recreate);
+  setStatus(isRecreate ? "Recreating cover image..." : "Generating cover image...");
+  setCoverStatus(isRecreate ? "Recreating cover image..." : "Generating cover image...");
   generateImageButton.disabled = true;
+  recreateImageButton.disabled = true;
 
   try {
     const result = await postJson("/api/cover-image", {
-      prompt: carousel.slides[0].imagePrompt,
+      prompt,
       size: "1024x1024",
       quality: "medium"
     });
     coverImageUrl = result.imageUrl;
-    setStatus(`Cover image generated with ${result.model}.`, "success");
+    const message = isRecreate
+      ? `Cover image recreated with ${result.model}.`
+      : `Cover image generated with ${result.model}.`;
+    setStatus(message, "success");
+    setCoverStatus(message, "success");
     render();
   } catch (error) {
     const message = error.code === "openai_key_missing"
       ? "Carousel created. Set OPENAI_API_KEY to generate the cover image."
       : error.message;
     setStatus(message, "warning");
+    setCoverStatus(message, "warning");
   } finally {
-    generateImageButton.disabled = false;
+    const hasPrompt = Boolean(carousel?.slides?.[0]?.imagePrompt);
+    generateImageButton.disabled = !hasPrompt;
+    recreateImageButton.disabled = !hasPrompt;
   }
 }
 
@@ -284,6 +323,7 @@ form.addEventListener("submit", async (event) => {
   }
 
   setStatus("Fetching and converting content...");
+  setCoverStatus("Waiting for generated carousel...");
   coverImageUrl = "";
 
   try {
@@ -295,9 +335,12 @@ form.addEventListener("submit", async (event) => {
 
     if (document.querySelector("#auto-image").checked) {
       await generateCoverImage();
+    } else {
+      setCoverStatus("Cover prompt ready. Add direction or create a cover image.", "success");
     }
   } catch (error) {
     setStatus(error.message, "warning");
+    setCoverStatus("Carousel generation failed.", "warning");
   }
 });
 
@@ -328,7 +371,8 @@ downloadButton.addEventListener("click", async () => {
   setStatus("HTML downloaded.", "success");
 });
 
-generateImageButton.addEventListener("click", generateCoverImage);
+generateImageButton.addEventListener("click", () => generateCoverImage());
+recreateImageButton.addEventListener("click", () => generateCoverImage({ recreate: true }));
 
 document.querySelector("#brand-preset").addEventListener("change", (event) => {
   applyBrandPreset(event.target.value);

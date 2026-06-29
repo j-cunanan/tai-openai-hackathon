@@ -538,7 +538,7 @@ function clip(value, max = 120) {
 function titleCase(value) {
   return value
     .toLowerCase()
-    .replace(/\b([a-z])/g, (match) => match.toUpperCase())
+    .replace(/(^|[\s([{/"-])([a-z])/g, (_, prefix, letter) => `${prefix}${letter.toUpperCase()}`)
     .replace(/\bSmbs\b/g, "SMBs")
     .replace(/\bSmb\b/g, "SMB")
     .replace(/\bAi\b/g, "AI")
@@ -590,13 +590,19 @@ function toBullets(text) {
 
 function makeCoverPrompt({ headline, tweet, brand }) {
   const palette = [brand.primaryColor, brand.accentColor, brand.paperColor, brand.inkColor].filter(Boolean).join(", ");
+  const sourceInsight = clip(normalizeText(tweet?.text || headline), 360);
   return [
-    "Create a square editorial Instagram carousel cover image with no readable text.",
+    "Create a 1024x1024 square Instagram carousel cover image with viral potential and no readable text.",
     `Topic: ${headline}.`,
+    sourceInsight ? `Core insight to visualize: ${sourceInsight}.` : "",
     tweet?.author || tweet?.handle ? `Inspired by a post from ${tweet.author || tweet.handle}.` : "",
     `Brand mood: ${brand.tone || "sharp, credible, modern SMB growth marketing"}.`,
     palette ? `Use this color direction: ${palette}.` : "",
-    "Style: premium social media cover art, bold central metaphor, clean negative space, high contrast, no logos, no UI screenshots, no captions."
+    "Composition requirement: the HTML template places this art in the upper 66% of the cover slide, so put the main subject, action, contrast, and visual hook in the top two-thirds of the square.",
+    "Keep the lower 34% visually calm: soft gradient, clean shadow, or simple negative space only, with no faces, hands, objects, high-detail texture, hard edges, or focal points where headline text will sit.",
+    "Viral creative direction: build a thumb-stopping editorial poster around one surprising central metaphor, strong curiosity gap, dramatic scale contrast, clear foreground/background separation, and social-native energy.",
+    "Make it feel premium and brand-safe for SMB growth marketing: bold, polished, high contrast, cinematic lighting, sharp silhouette, minimal clutter, instantly legible as a concept at phone size.",
+    "Avoid: readable words, captions, logos, UI screenshots, charts, tweet screenshots, dense collage, tiny details, low-contrast bottom area, or decorative filler."
   ].filter(Boolean).join(" ");
 }
 

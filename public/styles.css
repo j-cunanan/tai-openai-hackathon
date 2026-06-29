@@ -82,8 +82,8 @@ button:hover:not(:disabled) {
 .brand-lockup p,
 .workspace-header h2,
 .workspace-header p,
-.slide-notes h3,
-.slide-notes p {
+.cover-panel h3,
+.cover-panel p {
   margin: 0;
 }
 
@@ -329,8 +329,13 @@ textarea:focus {
   max-width: 320px;
 }
 
-.slide-notes {
+.cover-workbench {
   align-self: start;
+  display: grid;
+  gap: 14px;
+}
+
+.cover-panel {
   display: grid;
   gap: 14px;
   background: #ffffff;
@@ -339,15 +344,40 @@ textarea:focus {
   padding: 16px;
 }
 
-.slide-notes h3 {
+.cover-panel h3 {
   font-size: 14px;
 }
 
-.slide-notes p {
+.cover-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.cover-panel textarea {
+  min-height: 94px;
+}
+
+.prompt-panel textarea {
   color: var(--muted);
   font-size: 13px;
   line-height: 1.5;
   overflow-wrap: anywhere;
+  min-height: 230px;
+}
+
+.cover-status {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.cover-status[data-tone="success"] {
+  color: #0b7a46;
+}
+
+.cover-status[data-tone="warning"] {
+  color: #b54708;
 }
 
 .slide {
@@ -466,7 +496,7 @@ textarea:focus {
 
 .slide-cover {
   display: grid;
-  grid-template-rows: 48% 1fr auto;
+  grid-template-rows: 66% 1fr auto;
   background: var(--brand);
   color: #ffffff;
 }
@@ -482,6 +512,7 @@ textarea:focus {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center top;
 }
 
 .cover-image.has-image {
@@ -525,6 +556,12 @@ textarea:focus {
   padding: 7.4%;
 }
 
+.slide-cover .slide-content {
+  align-content: center;
+  gap: 10px;
+  padding: 4.8% 7.4% 1.8%;
+}
+
 .slide-kicker,
 .slide-eyebrow,
 .slide-number,
@@ -550,14 +587,14 @@ textarea:focus {
 }
 
 .slide-headline {
-  max-width: 12ch;
-  font-size: clamp(38px, 6vw, 78px);
+  max-width: 14ch;
+  font-size: clamp(30px, 4.8vw, 58px);
 }
 
 .slide-subhead {
   margin: 0;
   color: color-mix(in srgb, #ffffff 84%, var(--paper));
-  font-size: clamp(15px, 2vw, 24px);
+  font-size: clamp(13px, 1.65vw, 20px);
   font-weight: 700;
 }
 
@@ -566,6 +603,10 @@ textarea:focus {
   z-index: 1;
   padding: 0 7.4% 6.4%;
   color: color-mix(in srgb, currentColor 74%, transparent);
+}
+
+.slide-cover .slide-footer {
+  padding-bottom: 4.4%;
 }
 
 .slide-content-card {
@@ -697,7 +738,7 @@ textarea:focus {
     overflow-y: hidden;
   }
 
-  .slide-notes {
+  .cover-workbench {
     order: 3;
   }
 }

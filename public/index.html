@@ -123,10 +123,24 @@
             </div>
           </div>
 
-          <aside class="slide-notes">
-            <h3>Cover prompt</h3>
-            <p id="cover-prompt">No prompt yet.</p>
-            <button id="generate-image" type="button" disabled>Regenerate cover image</button>
+          <aside class="cover-workbench" aria-label="Cover image tools">
+            <section class="cover-panel">
+              <h3>Cover image</h3>
+              <div class="cover-actions">
+                <button id="generate-image" type="button" disabled>Create cover</button>
+                <button id="recreate-image" type="button" disabled>Recreate cover</button>
+              </div>
+              <label>
+                <span>Creative direction</span>
+                <textarea id="cover-direction" rows="4" placeholder="Optional: sharper metaphor, more premium, more surreal, darker lighting..."></textarea>
+              </label>
+              <p id="cover-status" class="cover-status">No cover generated.</p>
+            </section>
+
+            <section class="cover-panel prompt-panel">
+              <h3>Cover prompt</h3>
+              <textarea id="cover-prompt" rows="12" readonly>No prompt yet.</textarea>
+            </section>
           </aside>
         </div>
       </section>

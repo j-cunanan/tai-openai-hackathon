@@ -41,6 +41,14 @@ assert.equal(carousel.slides[1].type, "content");
 assert.equal(carousel.slides[3].type, "content");
 assert.equal(carousel.slides[4].type, "cta");
 assert.match(carousel.slides[0].headline, /SMBs/);
-assert.match(carousel.slides[0].imagePrompt, /square editorial Instagram carousel cover image/);
+assert.match(carousel.slides[0].imagePrompt, /upper 66%/);
+assert.match(carousel.slides[0].imagePrompt, /viral potential/);
+
+const apostropheCarousel = buildCarousel({
+  manualText: "Most SMBs don't need more random posts. They need one strong visual hook.",
+  brand: {},
+  cta: {}
+});
+assert.doesNotMatch(apostropheCarousel.slides[0].headline, /Don'T/);
 
 console.log("Smoke tests passed.");
